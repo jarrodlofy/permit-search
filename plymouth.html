@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plymouth MA — Kitchen Permit Finder</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #222; }
+  header { background: #1a5276; color: white; padding: 18px 28px; }
+  header h1 { font-size: 1.3rem; font-weight: 600; }
+  header p { font-size: 0.85rem; opacity: 0.8; margin-top: 4px; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+  .panel { background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  .panel h2 { font-size: 1rem; font-weight: 600; margin-bottom: 14px; color: #333; }
+
+  /* Archive links */
+  .archive-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .archive-link { display: inline-block; padding: 6px 12px; background: #eaf0fb; border: 1px solid #b3c6f0; border-radius: 4px; font-size: 0.82rem; color: #1a5276; text-decoration: none; }
+  .archive-link:hover { background: #d0e0f8; }
+
+  /* Auto-fetch */
+  .fetch-section { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .fetch-section p { font-size: 0.85rem; color: #555; }
+  .divider { display: flex; align-items: center; gap: 10px; margin: 18px 0; color: #aaa; font-size: 0.8rem; }
+  .divider::before, .divider::after { content: ''; flex: 1; border-top: 1px solid #ddd; }
+
+  /* Drop zone */
+  .drop-zone { border: 2px dashed #aaa; border-radius: 8px; padding: 40px; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; }
+  .drop-zone.dragover { border-color: #1a5276; background: #eaf0fb; }
+  .drop-zone input[type=file] { display: none; }
+  .drop-zone p { color: #666; font-size: 0.9rem; }
+  .drop-zone .hint { font-size: 0.8rem; color: #999; margin-top: 6px; }
+  .btn { display: inline-block; padding: 9px 20px; background: #1a5276; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 0.9rem; }
+  .btn:hover { background: #154360; }
+  .btn:disabled { background: #999; cursor: default; }
+
+  /* Filters */
+  .filter-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { padding: 4px 10px; background: #1a5276; color: white; border-radius: 20px; font-size: 0.78rem; cursor: pointer; user-select: none; }
+  .chip.off { background: #ccc; color: #555; }
+  label { font-size: 0.85rem; color: #555; }
+  input[type=text] { padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.85rem; width: 180px; }
+
+  /* Progress */
+  #progress { display: none; }
+  .progress-bar-wrap { background: #e0e0e0; border-radius: 4px; height: 8px; margin-top: 8px; }
+  .progress-bar { background: #1a5276; height: 8px; border-radius: 4px; width: 0%; transition: width 0.1s; }
+  #status-msg { font-size: 0.85rem; color: #555; margin-top: 6px; }
+
+  /* Results */
+  #results-panel { display: none; }
+  .stats { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 16px; }
+  .stat { text-align: center; }
+  .stat .num { font-size: 1.8rem; font-weight: 700; color: #1a5276; }
+  .stat .lbl { font-size: 0.75rem; color: #666; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+  thead th { background: #1a5276; color: white; padding: 9px 10px; text-align: left; font-weight: 600; position: sticky; top: 0; cursor: pointer; white-space: nowrap; }
+  thead th:hover { background: #154360; }
+  tbody tr:nth-child(even) { background: #f9f9f9; }
+  tbody tr:hover { background: #eaf0fb; }
+  td { padding: 8px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
+  td.desc { max-width: 280px; }
+  td.addr { white-space: nowrap; }
+  td.phone { white-space: nowrap; }
+  td.date { white-space: nowrap; }
+
+  .export-btn { margin-top: 14px; }
+  .no-results { padding: 30px; text-align: center; color: #999; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Plymouth MA — Kitchen Permit Finder</h1>
+  <p>Habitat for Humanity Cabinet Program — find kitchen permit applicants from monthly Building Department reports</p>
+</header>
+
+<div class="container">
+
+  <!-- Auto-fetch -->
+  <div class="panel">
+    <h2>Load Plymouth MA Permit Report</h2>
+
+    <div class="fetch-section">
+      <button class="btn" id="fetch-btn" onclick="fetchLatest()">Fetch Latest Report (May 2026)</button>
+      <p>Automatically downloads and parses the latest monthly report from Plymouth MA.</p>
+    </div>
+    <div id="fetch-error" style="display:none;margin-top:10px;font-size:0.83rem;color:#c0392b;"></div>
+
+    <div class="divider">or upload manually</div>
+
+    <div class="drop-zone" id="drop-zone">
+      <input type="file" id="file-input" accept=".pdf">
+      <p>Drag &amp; drop a Plymouth MA permit PDF here, or <strong>click to browse</strong></p>
+      <p class="hint">Download from: <a href="https://www.plymouth-ma.gov/Archive.aspx?ADID=552" target="_blank" style="color:#1a5276;">May 2026</a> &nbsp;·&nbsp; <a href="https://www.plymouth-ma.gov/building-department/pages/monthly-building-permits" target="_blank" style="color:#1a5276;">All months</a></p>
+    </div>
+
+    <div id="progress" style="margin-top:14px;">
+      <div class="progress-bar-wrap"><div class="progress-bar" id="progress-bar"></div></div>
+      <div id="status-msg">Parsing PDF…</div>
+    </div>
+  </div>
+
+  <!-- Step 3: Filters -->
+  <div class="panel" id="filter-panel" style="display:none;">
+    <h2>Step 3 — Filter results</h2>
+    <div class="filter-row">
+      <label>Keywords:</label>
+      <div class="chips" id="chips"></div>
+      <input type="text" id="keyword-input" placeholder="Add keyword…">
+      <button class="btn" onclick="addKeyword()">Add</button>
+    </div>
+    <div class="filter-row" style="margin-top:12px;">
+      <label>Description search:</label>
+      <input type="text" id="search-input" placeholder="Search descriptions…" oninput="renderTable()">
+      <button class="btn" onclick="renderTable()" style="margin-left:auto;">Apply</button>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="panel" id="results-panel">
+    <h2>Results</h2>
+    <div class="stats" id="stats"></div>
+    <button class="btn export-btn" onclick="exportCSV()">Export to CSV</button>
+    <div style="overflow-x:auto;margin-top:14px;">
+      <div id="table-container"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- PDF.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ── Auto-fetch ────────────────────────────────────────────────────────────────
+const LATEST_ADID = 552;
+const LATEST_LABEL = 'May 2026';
+// Railway server proxies the Plymouth PDF to avoid CORS
+const RAILWAY_HOST = 'https://metar-validator-production.up.railway.app';
+
+async function fetchLatest() {
+  const btn = document.getElementById('fetch-btn');
+  const errEl = document.getElementById('fetch-error');
+  errEl.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'Fetching…';
+  document.getElementById('progress').style.display = 'block';
+  setProgress(5, `Downloading ${LATEST_LABEL} report…`);
+
+  let arrayBuffer = null;
+  try {
+    const res = await fetch(`${RAILWAY_HOST}/api/plymouth-pdf?adid=${LATEST_ADID}`);
+    if (!res.ok) throw new Error(`Server returned HTTP ${res.status}`);
+    arrayBuffer = await res.arrayBuffer();
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = `Fetch Latest Report (${LATEST_LABEL})`;
+    document.getElementById('progress').style.display = 'none';
+    errEl.textContent = `Could not fetch the PDF: ${e.message}. Please download it manually using the link below and upload it.`;
+    errEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = false;
+  btn.textContent = `Fetch Latest Report (${LATEST_LABEL})`;
+  await parsePdfBuffer(arrayBuffer);
+}
+
+// ── Keyword chips ─────────────────────────────────────────────────────────────
+let keywords = ['kitchen','cabinet','demo','demolition','remodel','renovation','gut'];
+let activeKeywords = new Set(keywords);
+
+function renderChips() {
+  const el = document.getElementById('chips');
+  el.innerHTML = keywords.map(k =>
+    `<span class="chip ${activeKeywords.has(k)?'':'off'}" onclick="toggleKeyword('${k}')">${k}</span>`
+  ).join('');
+}
+
+function toggleKeyword(k) {
+  if (activeKeywords.has(k)) activeKeywords.delete(k);
+  else activeKeywords.add(k);
+  renderChips();
+  renderTable();
+}
+
+function addKeyword() {
+  const inp = document.getElementById('keyword-input');
+  const val = inp.value.trim().toLowerCase();
+  if (val && !keywords.includes(val)) { keywords.push(val); activeKeywords.add(val); }
+  inp.value = '';
+  renderChips();
+  renderTable();
+}
+document.getElementById('keyword-input').addEventListener('keydown', e => { if (e.key==='Enter') addKeyword(); });
+renderChips();
+
+// ── Drop zone ─────────────────────────────────────────────────────────────────
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', () => handleFile(fileInput.files[0]));
+
+// ── PDF parsing ───────────────────────────────────────────────────────────────
+let allRecords = [];
+
+async function handleFile(file) {
+  if (!file || file.type !== 'application/pdf') { alert('Please select a PDF file.'); return; }
+  document.getElementById('progress').style.display = 'block';
+  document.getElementById('results-panel').style.display = 'none';
+  setProgress(0, 'Loading PDF…');
+  await parsePdfBuffer(await file.arrayBuffer());
+}
+
+async function parsePdfBuffer(arrayBuffer) {
+  document.getElementById('results-panel').style.display = 'none';
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const totalPages = pdf.numPages;
+  setProgress(5, `Extracting text from ${totalPages} pages…`);
+
+  // Collect all text items with position across all pages
+  const pageItems = [];
+  for (let p = 1; p <= totalPages; p++) {
+    const page = await pdf.getPage(p);
+    const tc = await page.getTextContent();
+    const vp = page.getViewport({ scale: 1 });
+    // Normalise y so top of page = 0
+    const items = tc.items
+      .filter(i => i.str && i.str.trim())
+      .map(i => ({
+        text: i.str.trim(),
+        x: Math.round(i.transform[4]),
+        y: Math.round(vp.height - i.transform[5]), // flip
+        page: p
+      }));
+    pageItems.push(items);
+    if (p % 10 === 0) setProgress(5 + Math.round((p/totalPages)*70), `Page ${p}/${totalPages}…`);
+  }
+
+  setProgress(75, 'Parsing records…');
+  allRecords = parseRecords(pageItems);
+  setProgress(100, `Done — ${allRecords.length} records parsed.`);
+
+  document.getElementById('filter-panel').style.display = 'block';
+  document.getElementById('results-panel').style.display = 'block';
+  renderTable();
+}
+
+function setProgress(pct, msg) {
+  document.getElementById('progress-bar').style.width = pct + '%';
+  document.getElementById('status-msg').textContent = msg;
+}
+
+// ── Table parser ──────────────────────────────────────────────────────────────
+// The Plymouth MA PDF has consistent column positions across all pages.
+// We detect the header row per page to calibrate column X ranges, then
+// assign text items to columns by proximity to the header X positions.
+
+const COL_NAMES = ['Record Type','Record','Location','Mbl','Issued Date','Description','Doc Title','Est Cost','Applicant','Phone','Owner','Total Paid'];
+
+function parseRecords(pageItems) {
+  const records = [];
+
+  for (const items of pageItems) {
+    if (!items.length) continue;
+
+    // Find header row: look for "Record Type" or "Record" label
+    const headerItems = items.filter(i => i.text === 'Record Type' || i.text === 'Record');
+    if (!headerItems.length) continue; // skip non-table pages (e.g. chart page)
+
+    // Build column X positions from full header row
+    // Header texts and their column index
+    const headerMap = {
+      'Record Type': 0, 'Record': 1, 'Location': 2, 'Mbl': 3,
+      'Permit License Issued Date': 4, 'Issued Date': 4,
+      'Description of Work': 5, 'Document Title': 6,
+      'Estimated Cost': 7, 'Applicant Name': 8, 'Applicant PhoneNo': 9,
+      'Owner Name': 10, 'Total Paid': 11
+    };
+
+    // Find the Y of the header row
+    const recTypeItem = items.find(i => i.text === 'Record Type');
+    if (!recTypeItem) continue;
+    const headerY = recTypeItem.y;
+
+    // Collect all header-row items within ±8px of headerY
+    const headerRow = items.filter(i => Math.abs(i.y - headerY) <= 8);
+
+    // Build colX: array of {x, colIdx} sorted by x
+    const colX = [];
+    for (const hi of headerRow) {
+      // Try exact match first, then partial
+      let colIdx = -1;
+      for (const [key, idx] of Object.entries(headerMap)) {
+        if (hi.text === key || hi.text.startsWith(key.split(' ')[0])) { colIdx = idx; break; }
+      }
+      // Also try substring
+      if (colIdx === -1) {
+        for (const [key, idx] of Object.entries(headerMap)) {
+          if (key.includes(hi.text) || hi.text.includes(key.split(' ')[0])) { colIdx = idx; break; }
+        }
+      }
+      if (colIdx >= 0) colX.push({ x: hi.x, colIdx });
+    }
+    colX.sort((a,b) => a.x - b.x);
+    if (colX.length < 3) continue; // couldn't calibrate
+
+    // Add sentinel at right edge
+    const maxX = Math.max(...items.map(i => i.x)) + 200;
+    colX.push({ x: maxX, colIdx: -1 });
+
+    // Assign column by finding which colX interval the item falls into
+    function getCol(x) {
+      for (let i = 0; i < colX.length - 1; i++) {
+        if (x >= colX[i].x - 5 && x < colX[i+1].x - 5) return colX[i].colIdx;
+      }
+      return -1;
+    }
+
+    // Get data items (below header row, above any footer)
+    const dataItems = items.filter(i => i.y > headerY + 10);
+
+    // Group data items into row bands by Y proximity (within 6px = same row)
+    const bands = [];
+    for (const item of dataItems.sort((a,b) => a.y - b.y || a.x - b.x)) {
+      const last = bands[bands.length-1];
+      if (last && Math.abs(item.y - last.y) <= 6) {
+        last.items.push(item);
+      } else {
+        bands.push({ y: item.y, items: [item] });
+      }
+    }
+
+    // Group bands into records: a new record starts when we see a "Building Permit" or similar type label in col 0
+    // OR when col 1 has a new record number (A-XX-NNN pattern)
+    const RECORD_TYPE_KEYWORDS = ['Building Permit', 'Electrical Permit', 'Plumbing Permit', 'Gas Permit', 'Mechanical Permit', 'Certificate', 'Demolition', 'Sign Permit', 'Fence Permit', 'Pool Permit', 'Sprinkler'];
+
+    let currentRecord = null;
+
+    for (const band of bands) {
+      // Classify this band by column
+      const colGroups = {};
+      for (const item of band.items) {
+        const col = getCol(item.x);
+        if (col < 0) continue;
+        if (!colGroups[col]) colGroups[col] = [];
+        colGroups[col].push(item.text);
+      }
+
+      const col0text = (colGroups[0] || []).join(' ');
+      const col1text = (colGroups[1] || []).join(' ');
+
+      // Check if this band starts a new record
+      const isNewRecordType = RECORD_TYPE_KEYWORDS.some(k => col0text.includes(k));
+      const isNewRecordNum = /^[A-Z]{1,3}-\d{2}-\d+$/.test(col1text);
+
+      if (isNewRecordType || isNewRecordNum) {
+        if (currentRecord) records.push(currentRecord);
+        currentRecord = initRecord();
+      }
+
+      if (!currentRecord) continue;
+
+      // Merge into current record
+      for (const [col, texts] of Object.entries(colGroups)) {
+        const c = parseInt(col);
+        const txt = texts.join(' ');
+        if (c === 0 && txt) currentRecord.recordType += (currentRecord.recordType ? ' ' : '') + txt;
+        else if (c === 1 && txt) currentRecord.record += (currentRecord.record ? ' ' : '') + txt;
+        else if (c === 2 && txt) currentRecord.location += (currentRecord.location ? ' ' : '') + txt;
+        else if (c === 3 && txt) currentRecord.mbl += (currentRecord.mbl ? ' ' : '') + txt;
+        else if (c === 4 && txt) currentRecord.issuedDate += (currentRecord.issuedDate ? ' ' : '') + txt;
+        else if (c === 5 && txt) currentRecord.description += (currentRecord.description ? ' ' : '') + txt;
+        else if (c === 6 && txt) currentRecord.docTitle += (currentRecord.docTitle ? ' ' : '') + txt;
+        else if (c === 7 && txt) currentRecord.estCost += (currentRecord.estCost ? ' ' : '') + txt;
+        else if (c === 8 && txt) currentRecord.applicant += (currentRecord.applicant ? ' ' : '') + txt;
+        else if (c === 9 && txt) currentRecord.phone += (currentRecord.phone ? ' ' : '') + txt;
+        else if (c === 10 && txt) currentRecord.owner += (currentRecord.owner ? ' ' : '') + txt;
+        else if (c === 11 && txt) currentRecord.totalPaid += (currentRecord.totalPaid ? ' ' : '') + txt;
+      }
+    }
+    if (currentRecord) records.push(currentRecord);
+  }
+
+  // Deduplicate by record number
+  const seen = new Set();
+  return records.filter(r => {
+    if (!r.record) return false;
+    if (seen.has(r.record)) return false;
+    seen.add(r.record);
+    return true;
+  });
+}
+
+function initRecord() {
+  return { recordType:'', record:'', location:'', mbl:'', issuedDate:'', description:'', docTitle:'', estCost:'', applicant:'', phone:'', owner:'', totalPaid:'' };
+}
+
+// ── Table render ──────────────────────────────────────────────────────────────
+let sortCol = null, sortDir = 1;
+
+function matchesFilters(r) {
+  const desc = r.description.toLowerCase();
+  const search = document.getElementById('search-input').value.trim().toLowerCase();
+  const kwMatch = activeKeywords.size === 0 || [...activeKeywords].some(k => desc.includes(k));
+  const searchMatch = !search || desc.includes(search) || r.location.toLowerCase().includes(search);
+  return kwMatch && searchMatch;
+}
+
+function renderTable() {
+  let filtered = allRecords.filter(matchesFilters);
+
+  if (sortCol !== null) {
+    const key = ['record','location','issuedDate','description','applicant','phone','owner'][sortCol];
+    filtered.sort((a,b) => sortDir * a[key].localeCompare(b[key]));
+  }
+
+  // Stats
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><div class="num">${allRecords.length}</div><div class="lbl">Total records</div></div>
+    <div class="stat"><div class="num">${filtered.length}</div><div class="lbl">Keyword matches</div></div>
+  `;
+
+  if (!filtered.length) {
+    document.getElementById('table-container').innerHTML = '<div class="no-results">No records match the current filters.</div>';
+    return;
+  }
+
+  const cols = ['Permit #','Address','Date','Description of Work','Applicant','Phone','Owner Name'];
+  const keys = ['record','location','issuedDate','description','applicant','phone','owner'];
+
+  const th = cols.map((c,i) => `<th onclick="sortBy(${i})">${c}${sortCol===i?(sortDir>0?' ▲':' ▼'):''}</th>`).join('');
+
+  const rows = filtered.map(r => `<tr>
+    <td>${esc(r.record)}</td>
+    <td class="addr">${esc(r.location)}</td>
+    <td class="date">${esc(r.issuedDate)}</td>
+    <td class="desc">${highlight(r.description)}</td>
+    <td>${esc(r.applicant)}</td>
+    <td class="phone">${esc(r.phone)}</td>
+    <td>${esc(r.owner)}</td>
+  </tr>`).join('');
+
+  document.getElementById('table-container').innerHTML =
+    `<table><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function sortBy(i) {
+  if (sortCol === i) sortDir = -sortDir;
+  else { sortCol = i; sortDir = 1; }
+  renderTable();
+}
+
+function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function highlight(text) {
+  let h = esc(text);
+  for (const k of activeKeywords) {
+    const re = new RegExp(`(${k})`, 'gi');
+    h = h.replace(re, '<mark>$1</mark>');
+  }
+  return h;
+}
+
+// ── CSV export ────────────────────────────────────────────────────────────────
+function exportCSV() {
+  const filtered = allRecords.filter(matchesFilters);
+  const headers = ['Permit #','Address','Date','Description','Applicant','Phone','Owner','Permit Type','Est Cost'];
+  const rows = filtered.map(r => [r.record,r.location,r.issuedDate,r.description,r.applicant,r.phone,r.owner,r.recordType,r.estCost]);
+  const csv = [headers, ...rows].map(row => row.map(v => `"${(v||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'plymouth-kitchen-permits.csv';
+  a.click();
+}
+</script>
+</body>
+</html>
