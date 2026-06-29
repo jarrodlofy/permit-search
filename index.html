@@ -246,17 +246,7 @@ async function parsePdfBuffer(arrayBuffer) {
     if (p % 10 === 0) setProgress(5 + Math.round((p/totalPages)*70), `Page ${p}/${totalPages}…`);
   }
 
-  // Debug: dump page 2 items to console
-  if (pageItems[1]) {
-    console.log('=== PAGE 2 ITEMS (first 60) ===');
-    pageItems[1].slice(0, 60).forEach(i => console.log(`x=${i.x} y=${i.y} "${i.text}"`));
-    // Also check for record number pattern matches across all pages
-    const allItems = pageItems.flat();
-    const recNums = allItems.filter(i => /^[A-Z]{1,4}-\d{2}-\d+$/.test(i.text));
-    console.log('=== RECORD NUMBERS FOUND ===', recNums.length, recNums.slice(0,5));
-  }
-
-  setProgress(75, 'Parsing records…');
+setProgress(75, 'Parsing records…');
   allRecords = parseRecords(pageItems);
   setProgress(100, `Done — ${allRecords.length} records parsed.`);
 
