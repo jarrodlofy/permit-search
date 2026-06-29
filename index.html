@@ -174,7 +174,7 @@ async function fetchLatest() {
 
 // ── Keyword chips ─────────────────────────────────────────────────────────────
 let keywords = ['kitchen','cabinet','demo','demolition','remodel','renovation','gut'];
-let activeKeywords = new Set(keywords);
+let activeKeywords = new Set(); // empty = show all records
 
 function renderChips() {
   const el = document.getElementById('chips');
