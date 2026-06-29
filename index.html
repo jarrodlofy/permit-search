@@ -3,627 +3,483 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Habitat for Humanity — Kitchen Permit Finder</title>
+<title>Plymouth MA — Kitchen Permit Finder</title>
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #222; }
+  header { background: #1a5276; color: white; padding: 18px 28px; }
+  header h1 { font-size: 1.3rem; font-weight: 600; }
+  header p { font-size: 0.85rem; opacity: 0.8; margin-top: 4px; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
 
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    background: #f4f6f9;
-    color: #1a1a2e;
-    min-height: 100vh;
-  }
+  .panel { background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  .panel h2 { font-size: 1rem; font-weight: 600; margin-bottom: 14px; color: #333; }
 
-  header {
-    background: #003087;
-    color: white;
-    padding: 20px 32px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
+  /* Archive links */
+  .archive-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .archive-link { display: inline-block; padding: 6px 12px; background: #eaf0fb; border: 1px solid #b3c6f0; border-radius: 4px; font-size: 0.82rem; color: #1a5276; text-decoration: none; }
+  .archive-link:hover { background: #d0e0f8; }
 
-  header svg { flex-shrink: 0; }
+  /* Auto-fetch */
+  .fetch-section { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .fetch-section p { font-size: 0.85rem; color: #555; }
+  .divider { display: flex; align-items: center; gap: 10px; margin: 18px 0; color: #aaa; font-size: 0.8rem; }
+  .divider::before, .divider::after { content: ''; flex: 1; border-top: 1px solid #ddd; }
 
-  header h1 { font-size: 1.3rem; font-weight: 700; }
-  header p { font-size: 0.85rem; opacity: 0.8; margin-top: 2px; }
-
-  main { max-width: 900px; margin: 0 auto; padding: 32px 16px; }
-
-  .card {
-    background: white;
-    border-radius: 10px;
-    padding: 24px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-    margin-bottom: 24px;
-  }
-
-  .card h2 { font-size: 1rem; font-weight: 600; margin-bottom: 16px; color: #003087; }
-
-  .drop-zone {
-    border: 2px dashed #b0bec5;
-    border-radius: 8px;
-    padding: 40px;
-    text-align: center;
-    cursor: pointer;
-    transition: border-color 0.2s, background 0.2s;
-  }
-
-  .drop-zone:hover, .drop-zone.dragover {
-    border-color: #003087;
-    background: #f0f4ff;
-  }
-
+  /* Drop zone */
+  .drop-zone { border: 2px dashed #aaa; border-radius: 8px; padding: 40px; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; }
+  .drop-zone.dragover { border-color: #1a5276; background: #eaf0fb; }
   .drop-zone input[type=file] { display: none; }
+  .drop-zone p { color: #666; font-size: 0.9rem; }
+  .drop-zone .hint { font-size: 0.8rem; color: #999; margin-top: 6px; }
+  .btn { display: inline-block; padding: 9px 20px; background: #1a5276; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 0.9rem; }
+  .btn:hover { background: #154360; }
+  .btn:disabled { background: #999; cursor: default; }
 
-  .drop-zone .icon { font-size: 2.5rem; margin-bottom: 8px; }
-  .drop-zone p { color: #555; font-size: 0.95rem; }
-  .drop-zone span { color: #003087; font-weight: 600; cursor: pointer; text-decoration: underline; }
+  /* Filters */
+  .filter-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { padding: 4px 10px; background: #1a5276; color: white; border-radius: 20px; font-size: 0.78rem; cursor: pointer; user-select: none; }
+  .chip.off { background: #ccc; color: #555; }
+  label { font-size: 0.85rem; color: #555; }
+  input[type=text] { padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.85rem; width: 180px; }
 
-  .filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+  /* Progress */
+  #progress { display: none; }
+  .progress-bar-wrap { background: #e0e0e0; border-radius: 4px; height: 8px; margin-top: 8px; }
+  .progress-bar { background: #1a5276; height: 8px; border-radius: 4px; width: 0%; transition: width 0.1s; }
+  #status-msg { font-size: 0.85rem; color: #555; margin-top: 6px; }
 
-  .filter-group { display: flex; flex-direction: column; gap: 4px; }
-  .filter-group label { font-size: 0.78rem; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: 0.04em; }
-  .filter-group input, .filter-group select {
-    padding: 8px 12px;
-    border: 1px solid #dde1e7;
-    border-radius: 6px;
-    font-size: 0.9rem;
-    min-width: 180px;
-  }
-  .filter-group input:focus, .filter-group select:focus {
-    outline: none;
-    border-color: #003087;
-    box-shadow: 0 0 0 2px rgba(0,48,135,0.1);
-  }
+  /* Results */
+  #results-panel { display: none; }
+  .stats { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 16px; }
+  .stat { text-align: center; }
+  .stat .num { font-size: 1.8rem; font-weight: 700; color: #1a5276; }
+  .stat .lbl { font-size: 0.75rem; color: #666; }
 
-  .keywords-wrap { flex: 1; min-width: 260px; }
-  .keywords-wrap input { width: 100%; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+  thead th { background: #1a5276; color: white; padding: 9px 10px; text-align: left; font-weight: 600; position: sticky; top: 0; cursor: pointer; white-space: nowrap; }
+  thead th:hover { background: #154360; }
+  tbody tr:nth-child(even) { background: #f9f9f9; }
+  tbody tr:hover { background: #eaf0fb; }
+  td { padding: 8px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
+  td.desc { max-width: 280px; }
+  td.addr { white-space: nowrap; }
+  td.phone { white-space: nowrap; }
+  td.date { white-space: nowrap; }
 
-  .zip-wrap input { width: 140px; min-width: 0; }
-
-  button {
-    padding: 9px 20px;
-    border: none;
-    border-radius: 6px;
-    font-size: 0.9rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.15s;
-  }
-
-  .btn-primary { background: #003087; color: white; }
-  .btn-primary:hover { background: #002270; }
-  .btn-primary:disabled { background: #90a4ae; cursor: default; }
-
-  .btn-secondary { background: #e8eaf6; color: #003087; }
-  .btn-secondary:hover { background: #d0d5f0; }
-
-  .btn-export { background: #2e7d32; color: white; }
-  .btn-export:hover { background: #1b5e20; }
-
-  .action-row { display: flex; gap: 10px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
-
-  .status-bar {
-    padding: 10px 16px;
-    border-radius: 6px;
-    font-size: 0.88rem;
-    font-weight: 500;
-  }
-  .status-info { background: #e3f2fd; color: #0d47a1; }
-  .status-success { background: #e8f5e9; color: #1b5e20; }
-  .status-warn { background: #fff8e1; color: #e65100; }
-  .status-error { background: #ffebee; color: #b71c1c; }
-
-  .summary-strip {
-    display: flex;
-    gap: 16px;
-    flex-wrap: wrap;
-    margin-bottom: 16px;
-  }
-
-  .stat {
-    background: #f0f4ff;
-    border-radius: 8px;
-    padding: 12px 18px;
-    text-align: center;
-    min-width: 100px;
-  }
-  .stat .num { font-size: 1.8rem; font-weight: 700; color: #003087; }
-  .stat .lbl { font-size: 0.75rem; color: #555; margin-top: 2px; }
-
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.88rem;
-  }
-  thead th {
-    background: #f0f4ff;
-    color: #003087;
-    font-weight: 600;
-    text-align: left;
-    padding: 10px 12px;
-    border-bottom: 2px solid #d0d5f0;
-    white-space: nowrap;
-  }
-  thead th.sortable { cursor: pointer; user-select: none; }
-  thead th.sortable:hover { background: #dde5ff; }
-  tbody tr:nth-child(even) { background: #fafbff; }
-  tbody tr:hover { background: #eef2ff; }
-  tbody td { padding: 9px 12px; border-bottom: 1px solid #eee; vertical-align: top; }
-
-  .permit-type {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 0.78rem;
-    font-weight: 600;
-    background: #e8eaf6;
-    color: #3949ab;
-  }
-  .permit-type.demo { background: #fce4ec; color: #ad1457; }
-  .permit-type.new { background: #e8f5e9; color: #2e7d32; }
-  .permit-type.reno { background: #fff3e0; color: #e65100; }
-
-  .col-map { display: flex; flex-direction: column; gap: 8px; }
-  .col-map-row { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; }
-  .col-map-row label { width: 130px; color: #555; font-size: 0.8rem; }
-  .col-map-row select { flex: 1; padding: 5px 8px; border: 1px solid #dde1e7; border-radius: 5px; font-size: 0.85rem; }
-
-  .hidden { display: none !important; }
-
-  .tip {
-    font-size: 0.82rem;
-    color: #777;
-    margin-top: 8px;
-    line-height: 1.5;
-  }
-
-  .chip-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-  .chip {
-    background: #e8eaf6;
-    color: #3949ab;
-    border-radius: 12px;
-    padding: 3px 10px;
-    font-size: 0.8rem;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-  .chip button {
-    background: none;
-    border: none;
-    color: #3949ab;
-    font-size: 0.9rem;
-    padding: 0;
-    cursor: pointer;
-    line-height: 1;
-  }
-
-  #results-section { display: none; }
+  .export-btn { margin-top: 14px; }
+  .no-results { padding: 30px; text-align: center; color: #999; }
 </style>
 </head>
 <body>
 
 <header>
-  <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
-    <rect width="36" height="36" rx="8" fill="white" fill-opacity="0.15"/>
-    <path d="M18 6L6 16h4v14h6v-8h4v8h6V16h4L18 6z" fill="white"/>
-  </svg>
-  <div>
-    <h1>Kitchen Permit Finder</h1>
-    <p>Habitat for Humanity — Cabinet Program Outreach Tool</p>
-  </div>
+  <h1>Plymouth MA — Kitchen Permit Finder</h1>
+  <p>Habitat for Humanity Cabinet Program — find kitchen permit applicants from monthly Building Department reports</p>
 </header>
 
-<main>
+<div class="container">
 
-  <!-- Step 1: Upload -->
-  <div class="card" id="upload-card">
-    <h2>Step 1 — Upload Permit Export</h2>
+  <!-- Auto-fetch -->
+  <div class="panel">
+    <h2>Load Plymouth MA Permit Report</h2>
+
+    <div class="fetch-section">
+      <button class="btn" id="fetch-btn" onclick="fetchLatest()">Fetch Latest Report (May 2026)</button>
+      <p>Automatically downloads and parses the latest monthly report from Plymouth MA.</p>
+    </div>
+    <div id="fetch-error" style="display:none;margin-top:10px;font-size:0.83rem;color:#c0392b;"></div>
+
+    <div class="divider">or upload manually</div>
+
     <div class="drop-zone" id="drop-zone">
-      <input type="file" id="file-input" accept=".csv,.tsv,.txt">
-      <div class="icon">📂</div>
-      <p>Drag & drop your permit CSV here, or <span onclick="document.getElementById('file-input').click()">browse to upload</span></p>
-      <p style="font-size:0.8rem;color:#999;margin-top:8px;">Supports CSV and TSV exports from Accela, OpenGov, Tyler Tech, and most municipal permit portals</p>
+      <input type="file" id="file-input" accept=".pdf">
+      <p>Drag &amp; drop a Plymouth MA permit PDF here, or <strong>click to browse</strong></p>
+      <p class="hint">Download from: <a href="https://www.plymouth-ma.gov/Archive.aspx?ADID=552" target="_blank" style="color:#1a5276;">May 2026</a> &nbsp;·&nbsp; <a href="https://www.plymouth-ma.gov/building-department/pages/monthly-building-permits" target="_blank" style="color:#1a5276;">All months</a></p>
     </div>
-    <div id="upload-status" class="hidden status-bar" style="margin-top:12px;"></div>
-  </div>
 
-  <!-- Step 2: Map columns -->
-  <div class="card hidden" id="map-card">
-    <h2>Step 2 — Map Your Columns</h2>
-    <p class="tip">Tell us which columns in your CSV hold each piece of information. We detected the headers below — select the best match for each field.</p>
-    <div class="col-map" id="col-map" style="margin-top:16px;"></div>
-    <div class="action-row">
-      <button class="btn-primary" id="apply-map-btn">Apply Mapping</button>
-      <button class="btn-secondary" id="reset-upload-btn">Upload Different File</button>
+    <div id="progress" style="margin-top:14px;">
+      <div class="progress-bar-wrap"><div class="progress-bar" id="progress-bar"></div></div>
+      <div id="status-msg">Parsing PDF…</div>
     </div>
   </div>
 
-  <!-- Step 3: Filter -->
-  <div class="card hidden" id="filter-card">
-    <h2>Step 3 — Filter Permits</h2>
-    <div class="filters">
-      <div class="filter-group zip-wrap">
-        <label>Zip Code</label>
-        <input type="text" id="zip-input" placeholder="e.g. 02601" maxlength="10">
-      </div>
-      <div class="filter-group keywords-wrap">
-        <label>Keywords to match (in permit description / type)</label>
-        <input type="text" id="keyword-input" placeholder="Type a keyword and press Enter">
-      </div>
+  <!-- Step 3: Filters -->
+  <div class="panel" id="filter-panel" style="display:none;">
+    <h2>Step 3 — Filter results</h2>
+    <div class="filter-row">
+      <label>Keywords:</label>
+      <div class="chips" id="chips"></div>
+      <input type="text" id="keyword-input" placeholder="Add keyword…">
+      <button class="btn" onclick="addKeyword()">Add</button>
     </div>
-    <div class="chip-list" id="keyword-chips"></div>
-    <p class="tip" style="margin-top:12px;">Default keywords: <strong>kitchen, cabinet, demo, demolition, remodel, renovation, gut, addition</strong>. Add or remove terms above.</p>
-    <div class="action-row">
-      <button class="btn-primary" id="run-filter-btn">Find Matching Permits</button>
+    <div class="filter-row" style="margin-top:12px;">
+      <label>Description search:</label>
+      <input type="text" id="search-input" placeholder="Search descriptions…" oninput="renderTable()">
+      <button class="btn" onclick="renderTable()" style="margin-left:auto;">Apply</button>
     </div>
   </div>
 
   <!-- Results -->
-  <div id="results-section">
-    <div class="card">
-      <div class="summary-strip" id="summary-strip"></div>
-      <div class="action-row" style="margin-bottom:16px;">
-        <button class="btn-export" id="export-csv-btn">Export Contact List (CSV)</button>
-        <button class="btn-secondary" id="reset-all-btn">Start Over</button>
-      </div>
-      <div style="overflow-x:auto;">
-        <table id="results-table">
-          <thead id="results-head"></thead>
-          <tbody id="results-body"></tbody>
-        </table>
-      </div>
-      <p id="no-results" class="hidden" style="text-align:center;color:#888;padding:32px;">No permits matched your filters. Try broadening your keywords or removing the zip code filter.</p>
+  <div class="panel" id="results-panel">
+    <h2>Results</h2>
+    <div class="stats" id="stats"></div>
+    <button class="btn export-btn" onclick="exportCSV()">Export to CSV</button>
+    <div style="overflow-x:auto;margin-top:14px;">
+      <div id="table-container"></div>
     </div>
   </div>
 
-</main>
+</div>
 
+<!-- PDF.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
-// ── State ──────────────────────────────────────────────────────────────────
-let rawHeaders = [];
-let rawRows = [];   // array of objects keyed by header
-let mappedData = [];
-let filteredData = [];
-let sortCol = null;
-let sortAsc = true;
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-const DEFAULT_KEYWORDS = ['kitchen','cabinet','cabinets','demo','demolition','remodel','remodeling','renovation','gut','addition'];
-let activeKeywords = [...DEFAULT_KEYWORDS];
+// ── Auto-fetch ────────────────────────────────────────────────────────────────
+const LATEST_ADID = 552;
+const LATEST_LABEL = 'May 2026';
+// Railway server proxies the Plymouth PDF to avoid CORS
+const RAILWAY_HOST = 'https://permit-search.fly.dev';
 
-const FIELD_DEFS = [
-  { key: 'address',     label: 'Street Address',  required: true  },
-  { key: 'city',        label: 'City / Town',      required: false },
-  { key: 'zip',         label: 'Zip Code',         required: false },
-  { key: 'owner',       label: 'Owner / Applicant',required: false },
-  { key: 'phone',       label: 'Phone',            required: false },
-  { key: 'email',       label: 'Email',            required: false },
-  { key: 'description', label: 'Description / Work',required: true },
-  { key: 'type',        label: 'Permit Type',      required: false },
-  { key: 'date',        label: 'Issue / Applied Date', required: false },
-  { key: 'permit_no',   label: 'Permit Number',    required: false },
-];
+async function fetchLatest() {
+  const btn = document.getElementById('fetch-btn');
+  const errEl = document.getElementById('fetch-error');
+  errEl.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'Fetching…';
+  document.getElementById('progress').style.display = 'block';
+  setProgress(5, `Downloading ${LATEST_LABEL} report…`);
 
-// ── CSV parser ──────────────────────────────────────────────────────────────
-function parseCSV(text) {
-  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
-  const delim = text.includes('\t') ? '\t' : ',';
-
-  function splitLine(line) {
-    const result = [];
-    let cur = '';
-    let inQuote = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (ch === '"') {
-        if (inQuote && line[i+1] === '"') { cur += '"'; i++; }
-        else inQuote = !inQuote;
-      } else if (ch === delim && !inQuote) {
-        result.push(cur.trim());
-        cur = '';
-      } else {
-        cur += ch;
-      }
-    }
-    result.push(cur.trim());
-    return result;
+  let arrayBuffer = null;
+  try {
+    const res = await fetch(`${RAILWAY_HOST}/api/plymouth-pdf?adid=${LATEST_ADID}`);
+    if (!res.ok) throw new Error(`Server returned HTTP ${res.status}`);
+    arrayBuffer = await res.arrayBuffer();
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = `Fetch Latest Report (${LATEST_LABEL})`;
+    document.getElementById('progress').style.display = 'none';
+    errEl.textContent = `Could not fetch the PDF: ${e.message}. Please download it manually using the link below and upload it.`;
+    errEl.style.display = 'block';
+    return;
   }
 
-  const nonEmpty = lines.filter(l => l.trim());
-  if (nonEmpty.length < 2) return null;
-
-  const headers = splitLine(nonEmpty[0]);
-  const rows = nonEmpty.slice(1).map(line => {
-    const vals = splitLine(line);
-    const obj = {};
-    headers.forEach((h, i) => obj[h] = (vals[i] || '').trim());
-    return obj;
-  });
-  return { headers, rows };
+  btn.disabled = false;
+  btn.textContent = `Fetch Latest Report (${LATEST_LABEL})`;
+  await parsePdfBuffer(arrayBuffer);
 }
 
-// ── Auto-map columns ────────────────────────────────────────────────────────
-const HINTS = {
-  address:     ['address','street','location','site','addr','property'],
-  city:        ['city','town','municipality','muni'],
-  zip:         ['zip','postal','postcode'],
-  owner:       ['owner','applicant','name','contact','homeowner'],
-  phone:       ['phone','telephone','tel','mobile','cell'],
-  email:       ['email','e-mail','mail'],
-  description: ['description','work','scope','desc','type of work','project','details','narrative'],
-  type:        ['permit type','type','category','class','subtype','work type','permit_type'],
-  date:        ['date','issued','applied','filed','issue date','apply date','application date'],
-  permit_no:   ['permit','number','no','#','permit no','permit number','id','record'],
-};
+// ── Keyword chips ─────────────────────────────────────────────────────────────
+let keywords = ['kitchen','cabinet','demo','demolition','remodel','renovation','gut'];
+let activeKeywords = new Set(keywords);
 
-function autoMap(headers) {
-  const map = {};
-  FIELD_DEFS.forEach(f => {
-    const hints = HINTS[f.key];
-    const match = headers.find(h =>
-      hints.some(hint => h.toLowerCase().includes(hint))
-    );
-    map[f.key] = match || '';
-  });
-  return map;
-}
-
-// ── UI helpers ──────────────────────────────────────────────────────────────
-function show(id) { document.getElementById(id).classList.remove('hidden'); }
-function hide(id) { document.getElementById(id).classList.add('hidden'); }
-function setStatus(id, msg, type) {
-  const el = document.getElementById(id);
-  el.className = `status-bar status-${type}`;
-  el.textContent = msg;
-  el.classList.remove('hidden');
-}
-
-function permitTypeClass(val) {
-  if (!val) return '';
-  const v = val.toLowerCase();
-  if (v.includes('demo')) return 'demo';
-  if (v.includes('new')) return 'new';
-  return 'reno';
-}
-
-// ── Keyword chips ───────────────────────────────────────────────────────────
 function renderChips() {
-  const wrap = document.getElementById('keyword-chips');
-  wrap.innerHTML = '';
-  activeKeywords.forEach(kw => {
-    const chip = document.createElement('div');
-    chip.className = 'chip';
-    chip.innerHTML = `${kw} <button onclick="removeKeyword('${kw}')" title="Remove">×</button>`;
-    wrap.appendChild(chip);
-  });
+  const el = document.getElementById('chips');
+  el.innerHTML = keywords.map(k =>
+    `<span class="chip ${activeKeywords.has(k)?'':'off'}" onclick="toggleKeyword('${k}')">${k}</span>`
+  ).join('');
 }
 
-window.removeKeyword = function(kw) {
-  activeKeywords = activeKeywords.filter(k => k !== kw);
+function toggleKeyword(k) {
+  if (activeKeywords.has(k)) activeKeywords.delete(k);
+  else activeKeywords.add(k);
   renderChips();
-};
+  renderTable();
+}
 
-document.getElementById('keyword-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter') {
-    const val = e.target.value.trim().toLowerCase();
-    if (val && !activeKeywords.includes(val)) {
-      activeKeywords.push(val);
-      renderChips();
-    }
-    e.target.value = '';
-  }
-});
+function addKeyword() {
+  const inp = document.getElementById('keyword-input');
+  const val = inp.value.trim().toLowerCase();
+  if (val && !keywords.includes(val)) { keywords.push(val); activeKeywords.add(val); }
+  inp.value = '';
+  renderChips();
+  renderTable();
+}
+document.getElementById('keyword-input').addEventListener('keydown', e => { if (e.key==='Enter') addKeyword(); });
+renderChips();
 
-// ── File upload ─────────────────────────────────────────────────────────────
+// ── Drop zone ─────────────────────────────────────────────────────────────────
 const dropZone = document.getElementById('drop-zone');
 const fileInput = document.getElementById('file-input');
-
+dropZone.addEventListener('click', () => fileInput.click());
 dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
 dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFile(e.dataTransfer.files[0]); });
-fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+fileInput.addEventListener('change', () => handleFile(fileInput.files[0]));
 
-function handleFile(file) {
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const parsed = parseCSV(e.target.result);
-    if (!parsed || parsed.headers.length < 2) {
-      setStatus('upload-status', 'Could not parse file. Make sure it is a valid CSV or TSV export.', 'error');
-      return;
-    }
-    rawHeaders = parsed.headers;
-    rawRows = parsed.rows;
-    setStatus('upload-status', `✓ Loaded ${rawRows.length.toLocaleString()} rows with ${rawHeaders.length} columns from "${file.name}"`, 'success');
-    buildColumnMapper();
-    show('map-card');
-    renderChips();
-  };
-  reader.readAsText(file);
+// ── PDF parsing ───────────────────────────────────────────────────────────────
+let allRecords = [];
+
+async function handleFile(file) {
+  if (!file || file.type !== 'application/pdf') { alert('Please select a PDF file.'); return; }
+  document.getElementById('progress').style.display = 'block';
+  document.getElementById('results-panel').style.display = 'none';
+  setProgress(0, 'Loading PDF…');
+  await parsePdfBuffer(await file.arrayBuffer());
 }
 
-// ── Column mapper ───────────────────────────────────────────────────────────
-let currentMap = {};
+async function parsePdfBuffer(arrayBuffer) {
+  document.getElementById('results-panel').style.display = 'none';
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const totalPages = pdf.numPages;
+  setProgress(5, `Extracting text from ${totalPages} pages…`);
 
-function buildColumnMapper() {
-  currentMap = autoMap(rawHeaders);
-  const container = document.getElementById('col-map');
-  container.innerHTML = '';
-  FIELD_DEFS.forEach(f => {
-    const row = document.createElement('div');
-    row.className = 'col-map-row';
-    const options = ['(not in file)', ...rawHeaders].map(h =>
-      `<option value="${h}" ${currentMap[f.key] === h ? 'selected' : ''}>${h}</option>`
-    ).join('');
-    row.innerHTML = `
-      <label>${f.label}${f.required ? ' <span style="color:#c00">*</span>' : ''}</label>
-      <select data-field="${f.key}">${options}</select>
-    `;
-    container.appendChild(row);
-  });
-}
-
-document.getElementById('apply-map-btn').addEventListener('click', () => {
-  currentMap = {};
-  document.querySelectorAll('#col-map select').forEach(sel => {
-    const field = sel.dataset.field;
-    const val = sel.value;
-    if (val !== '(not in file)') currentMap[field] = val;
-  });
-
-  if (!currentMap.address && !currentMap.description) {
-    setStatus('upload-status', 'Please map at least an Address or Description column.', 'warn');
-    show('upload-status');
-    return;
+  // Collect all text items with position across all pages
+  const pageItems = [];
+  for (let p = 1; p <= totalPages; p++) {
+    const page = await pdf.getPage(p);
+    const tc = await page.getTextContent();
+    const vp = page.getViewport({ scale: 1 });
+    // Normalise y so top of page = 0
+    const items = tc.items
+      .filter(i => i.str && i.str.trim())
+      .map(i => ({
+        text: i.str.trim(),
+        x: Math.round(i.transform[4]),
+        y: Math.round(vp.height - i.transform[5]), // flip
+        page: p
+      }));
+    pageItems.push(items);
+    if (p % 10 === 0) setProgress(5 + Math.round((p/totalPages)*70), `Page ${p}/${totalPages}…`);
   }
 
-  // Build mapped rows
-  mappedData = rawRows.map(row => {
-    const out = {};
-    FIELD_DEFS.forEach(f => {
-      out[f.key] = currentMap[f.key] ? row[currentMap[f.key]] || '' : '';
-    });
-    return out;
-  }).filter(r => r.address || r.description);
+  // Debug: dump page 2 items to console
+  if (pageItems[1]) {
+    console.log('=== PAGE 2 ITEMS (first 60) ===');
+    pageItems[1].slice(0, 60).forEach(i => console.log(`x=${i.x} y=${i.y} "${i.text}"`));
+    // Also check for record number pattern matches across all pages
+    const allItems = pageItems.flat();
+    const recNums = allItems.filter(i => /^[A-Z]{1,4}-\d{2}-\d+$/.test(i.text));
+    console.log('=== RECORD NUMBERS FOUND ===', recNums.length, recNums.slice(0,5));
+  }
 
-  show('filter-card');
-  hide('map-card');
-});
+  setProgress(75, 'Parsing records…');
+  allRecords = parseRecords(pageItems);
+  setProgress(100, `Done — ${allRecords.length} records parsed.`);
 
-document.getElementById('reset-upload-btn').addEventListener('click', resetAll);
-
-// ── Filtering ───────────────────────────────────────────────────────────────
-document.getElementById('run-filter-btn').addEventListener('click', runFilter);
-
-function runFilter() {
-  const zip = document.getElementById('zip-input').value.trim();
-  const keywords = activeKeywords;
-
-  filteredData = mappedData.filter(row => {
-    const searchText = [row.description, row.type].join(' ').toLowerCase();
-    const hasKeyword = keywords.length === 0 || keywords.some(kw => searchText.includes(kw));
-    const matchesZip = !zip || row.zip.replace(/\s/g,'').startsWith(zip.replace(/\s/g,''));
-    return hasKeyword && matchesZip;
-  });
-
-  renderResults();
+  document.getElementById('filter-panel').style.display = 'block';
+  document.getElementById('results-panel').style.display = 'block';
+  renderTable();
 }
 
-// ── Results ─────────────────────────────────────────────────────────────────
-function renderResults() {
-  const section = document.getElementById('results-section');
-  section.style.display = 'block';
+function setProgress(pct, msg) {
+  document.getElementById('progress-bar').style.width = pct + '%';
+  document.getElementById('status-msg').textContent = msg;
+}
 
-  // Summary
-  const strip = document.getElementById('summary-strip');
-  const types = {};
-  filteredData.forEach(r => {
-    const t = r.type || 'Unknown';
-    types[t] = (types[t] || 0) + 1;
+// ── Table parser ──────────────────────────────────────────────────────────────
+// Strategy: anchor on permit number items (e.g. A-26-412) which are
+// unambiguous. Collect all items on each page, sort by Y then X, group into
+// row-bands, then assign columns by X position calibrated from the permit
+// number column (whose X position is consistent across pages).
+
+const RECORD_NUM_RE = /^[A-Z]{1,4}-\d{2}-\d+$/;
+
+function median(arr) {
+  const s = [...arr].sort((a,b) => a-b);
+  return s[Math.floor(s.length/2)];
+}
+
+function parseRecords(pageItems) {
+  const records = [];
+
+  // First pass: find the typical X position of permit numbers across all pages
+  const allRecordNums = pageItems.flat().filter(i => RECORD_NUM_RE.test(i.text));
+  if (!allRecordNums.length) return records;
+  const recordNumX = median(allRecordNums.map(i => i.x));
+
+  for (const items of pageItems) {
+    if (!items.length) continue;
+
+    const recordNumsOnPage = items.filter(i => RECORD_NUM_RE.test(i.text));
+    if (!recordNumsOnPage.length) continue;
+
+    // Sort all items by y then x
+    const sorted = [...items].sort((a,b) => a.y - b.y || a.x - b.x);
+
+    // Group into row-bands (items within 5px Y of each other share a band)
+    const bands = [];
+    for (const item of sorted) {
+      const last = bands[bands.length-1];
+      if (last && Math.abs(item.y - last.y) <= 5) {
+        last.items.push(item);
+        last.y = (last.y + item.y) / 2; // rolling average
+      } else {
+        bands.push({ y: item.y, items: [item] });
+      }
+    }
+
+    // Find Y positions of all permit numbers on this page
+    const recordBandYs = new Set(
+      recordNumsOnPage.map(rn => {
+        const band = bands.find(b => b.items.some(i => i === rn));
+        return band ? Math.round(band.y) : null;
+      }).filter(Boolean)
+    );
+
+    // Determine column X boundaries from permit number X position
+    // Columns (approximate x ranges relative to recordNumX):
+    // Col 0 (Record Type): x < recordNumX - 5
+    // Col 1 (Record #):    x ≈ recordNumX
+    // Col 2 (Location):    recordNumX + 40 to recordNumX + 130
+    // Col 3 (Mbl):         recordNumX + 135 to recordNumX + 200
+    // Col 4 (Date):        recordNumX + 205 to recordNumX + 290
+    // Col 5 (Description): recordNumX + 295 to recordNumX + 430
+    // Col 6 (Doc Title):   recordNumX + 435 to recordNumX + 510
+    // Col 7 (Est Cost):    recordNumX + 515 to recordNumX + 590
+    // Col 8 (Applicant):   recordNumX + 595 to recordNumX + 680
+    // Col 9 (Phone):       recordNumX + 685 to recordNumX + 760
+    // Col 10 (Owner):      recordNumX + 765 to recordNumX + 880
+    // Col 11 (Total Paid): recordNumX + 885+
+
+    function getCol(x) {
+      const dx = x - recordNumX;
+      if (dx < -5)   return 0;  // Record Type
+      if (dx < 38)   return 1;  // Record #
+      if (dx < 135)  return 2;  // Location
+      if (dx < 200)  return 3;  // Mbl
+      if (dx < 290)  return 4;  // Date
+      if (dx < 435)  return 5;  // Description
+      if (dx < 510)  return 6;  // Doc Title
+      if (dx < 590)  return 7;  // Est Cost
+      if (dx < 680)  return 8;  // Applicant
+      if (dx < 760)  return 9;  // Phone
+      if (dx < 885)  return 10; // Owner
+      return 11;                // Total Paid
+    }
+
+    // Assign each band to a record: new record starts at bands whose Y matches a record number Y
+    let currentRecord = null;
+    let currentRecordStartY = -1;
+
+    for (const band of bands) {
+      const bandY = Math.round(band.y);
+      const isRecordStart = recordNumsOnPage.some(rn => Math.abs(rn.y - band.y) <= 5 && band.items.includes(rn));
+
+      if (isRecordStart) {
+        if (currentRecord) records.push(currentRecord);
+        currentRecord = initRecord();
+        currentRecordStartY = bandY;
+      }
+
+      if (!currentRecord) continue;
+
+      // Assign items in this band to columns
+      for (const item of band.items) {
+        const col = getCol(item.x);
+        const t = item.text;
+        if      (col === 0)  currentRecord.recordType  += (currentRecord.recordType  ? ' ' : '') + t;
+        else if (col === 1)  currentRecord.record      += (currentRecord.record      ? ' ' : '') + t;
+        else if (col === 2)  currentRecord.location    += (currentRecord.location    ? ' ' : '') + t;
+        else if (col === 3)  currentRecord.mbl         += (currentRecord.mbl         ? ' ' : '') + t;
+        else if (col === 4)  currentRecord.issuedDate  += (currentRecord.issuedDate  ? ' ' : '') + t;
+        else if (col === 5)  currentRecord.description += (currentRecord.description ? ' ' : '') + t;
+        else if (col === 6)  currentRecord.docTitle    += (currentRecord.docTitle    ? ' ' : '') + t;
+        else if (col === 7)  currentRecord.estCost     += (currentRecord.estCost     ? ' ' : '') + t;
+        else if (col === 8)  currentRecord.applicant   += (currentRecord.applicant   ? ' ' : '') + t;
+        else if (col === 9)  currentRecord.phone       += (currentRecord.phone       ? ' ' : '') + t;
+        else if (col === 10) currentRecord.owner       += (currentRecord.owner       ? ' ' : '') + t;
+        else if (col === 11) currentRecord.totalPaid   += (currentRecord.totalPaid   ? ' ' : '') + t;
+      }
+    }
+    if (currentRecord) records.push(currentRecord);
+  }
+
+  // Deduplicate by record number
+  const seen = new Set();
+  return records.filter(r => {
+    if (!r.record) return false;
+    if (seen.has(r.record)) return false;
+    seen.add(r.record);
+    return true;
   });
-  const topType = Object.entries(types).sort((a,b) => b[1]-a[1])[0];
-  strip.innerHTML = `
-    <div class="stat"><div class="num">${filteredData.length}</div><div class="lbl">Matching Permits</div></div>
-    <div class="stat"><div class="num">${new Set(filteredData.map(r => r.address).filter(Boolean)).size}</div><div class="lbl">Unique Addresses</div></div>
-    <div class="stat"><div class="num">${new Set(filteredData.map(r => r.city).filter(Boolean)).size}</div><div class="lbl">Cities / Towns</div></div>
-    ${topType ? `<div class="stat"><div class="num" style="font-size:1.1rem">${topType[0]}</div><div class="lbl">Top Permit Type (${topType[1]})</div></div>` : ''}
+}
+
+function initRecord() {
+  return { recordType:'', record:'', location:'', mbl:'', issuedDate:'', description:'', docTitle:'', estCost:'', applicant:'', phone:'', owner:'', totalPaid:'' };
+}
+
+// ── Table render ──────────────────────────────────────────────────────────────
+let sortCol = null, sortDir = 1;
+
+function matchesFilters(r) {
+  const desc = r.description.toLowerCase();
+  const search = document.getElementById('search-input').value.trim().toLowerCase();
+  const kwMatch = activeKeywords.size === 0 || [...activeKeywords].some(k => desc.includes(k));
+  const searchMatch = !search || desc.includes(search) || r.location.toLowerCase().includes(search);
+  return kwMatch && searchMatch;
+}
+
+function renderTable() {
+  let filtered = allRecords.filter(matchesFilters);
+
+  if (sortCol !== null) {
+    const key = ['record','location','issuedDate','description','applicant','phone','owner'][sortCol];
+    filtered.sort((a,b) => sortDir * a[key].localeCompare(b[key]));
+  }
+
+  // Stats
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><div class="num">${allRecords.length}</div><div class="lbl">Total records</div></div>
+    <div class="stat"><div class="num">${filtered.length}</div><div class="lbl">Keyword matches</div></div>
   `;
 
-  const noResults = document.getElementById('no-results');
-  const table = document.getElementById('results-table');
-
-  if (filteredData.length === 0) {
-    noResults.classList.remove('hidden');
-    table.style.display = 'none';
+  if (!filtered.length) {
+    document.getElementById('table-container').innerHTML = '<div class="no-results">No records match the current filters.</div>';
     return;
   }
-  noResults.classList.add('hidden');
-  table.style.display = '';
 
-  // Determine which columns have any data
-  const visibleFields = FIELD_DEFS.filter(f =>
-    filteredData.some(r => r[f.key] && r[f.key].trim())
-  );
+  const cols = ['Permit #','Address','Date','Description of Work','Applicant','Phone','Owner Name'];
+  const keys = ['record','location','issuedDate','description','applicant','phone','owner'];
 
-  // Header
-  document.getElementById('results-head').innerHTML = `<tr>${visibleFields.map(f =>
-    `<th class="sortable" data-col="${f.key}">${f.label} ${sortCol === f.key ? (sortAsc ? '▲' : '▼') : ''}</th>`
-  ).join('')}</tr>`;
+  const th = cols.map((c,i) => `<th onclick="sortBy(${i})">${c}${sortCol===i?(sortDir>0?' ▲':' ▼'):''}</th>`).join('');
 
-  document.querySelectorAll('#results-head th.sortable').forEach(th => {
-    th.addEventListener('click', () => {
-      const col = th.dataset.col;
-      if (sortCol === col) sortAsc = !sortAsc;
-      else { sortCol = col; sortAsc = true; }
-      renderResults();
-    });
-  });
+  const rows = filtered.map(r => `<tr>
+    <td>${esc(r.record)}</td>
+    <td class="addr">${esc(r.location)}</td>
+    <td class="date">${esc(r.issuedDate)}</td>
+    <td class="desc">${highlight(r.description)}</td>
+    <td>${esc(r.applicant)}</td>
+    <td class="phone">${esc(r.phone)}</td>
+    <td>${esc(r.owner)}</td>
+  </tr>`).join('');
 
-  // Sort
-  const sorted = [...filteredData].sort((a, b) => {
-    if (!sortCol) return 0;
-    return sortAsc
-      ? (a[sortCol] || '').localeCompare(b[sortCol] || '')
-      : (b[sortCol] || '').localeCompare(a[sortCol] || '');
-  });
-
-  // Body
-  document.getElementById('results-body').innerHTML = sorted.map(r => `<tr>${
-    visibleFields.map(f => {
-      if (f.key === 'type') {
-        const cls = permitTypeClass(r.type);
-        return `<td><span class="permit-type ${cls}">${r.type || '—'}</span></td>`;
-      }
-      return `<td>${r[f.key] || '—'}</td>`;
-    }).join('')
-  }</tr>`).join('');
+  document.getElementById('table-container').innerHTML =
+    `<table><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table>`;
 }
 
-// ── Sort clicks ─────────────────────────────────────────────────────────────
-// (wired in renderResults above)
+function sortBy(i) {
+  if (sortCol === i) sortDir = -sortDir;
+  else { sortCol = i; sortDir = 1; }
+  renderTable();
+}
 
-// ── Export CSV ───────────────────────────────────────────────────────────────
-document.getElementById('export-csv-btn').addEventListener('click', () => {
-  if (!filteredData.length) return;
+function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-  const visibleFields = FIELD_DEFS.filter(f =>
-    filteredData.some(r => r[f.key] && r[f.key].trim())
-  );
+function highlight(text) {
+  let h = esc(text);
+  for (const k of activeKeywords) {
+    const re = new RegExp(`(${k})`, 'gi');
+    h = h.replace(re, '<mark>$1</mark>');
+  }
+  return h;
+}
 
-  const escape = v => `"${(v || '').replace(/"/g, '""')}"`;
-  const header = visibleFields.map(f => escape(f.label)).join(',');
-  const rows = filteredData.map(r => visibleFields.map(f => escape(r[f.key])).join(','));
-  const csv = [header, ...rows].join('\r\n');
-
+// ── CSV export ────────────────────────────────────────────────────────────────
+function exportCSV() {
+  const filtered = allRecords.filter(matchesFilters);
+  const headers = ['Permit #','Address','Date','Description','Applicant','Phone','Owner','Permit Type','Est Cost'];
+  const rows = filtered.map(r => [r.record,r.location,r.issuedDate,r.description,r.applicant,r.phone,r.owner,r.recordType,r.estCost]);
+  const csv = [headers, ...rows].map(row => row.map(v => `"${(v||'').replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url;
-  a.download = `habitat-kitchen-permits-${new Date().toISOString().slice(0,10)}.csv`;
+  a.href = URL.createObjectURL(blob);
+  a.download = 'plymouth-kitchen-permits.csv';
   a.click();
-  URL.revokeObjectURL(url);
-});
-
-// ── Reset ────────────────────────────────────────────────────────────────────
-function resetAll() {
-  rawHeaders = []; rawRows = []; mappedData = []; filteredData = [];
-  sortCol = null; sortAsc = true;
-  activeKeywords = [...DEFAULT_KEYWORDS];
-  document.getElementById('file-input').value = '';
-  document.getElementById('zip-input').value = '';
-  document.getElementById('keyword-input').value = '';
-  hide('map-card'); hide('filter-card');
-  hide('upload-status');
-  document.getElementById('results-section').style.display = 'none';
-  renderChips();
 }
-
-document.getElementById('reset-all-btn').addEventListener('click', resetAll);
-
-// ── Init ─────────────────────────────────────────────────────────────────────
-renderChips();
 </script>
 </body>
 </html>

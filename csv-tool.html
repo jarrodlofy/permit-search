@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Habitat for Humanity — Kitchen Permit Finder</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f4f6f9;
+    color: #1a1a2e;
+    min-height: 100vh;
+  }
+
+  header {
+    background: #003087;
+    color: white;
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  header svg { flex-shrink: 0; }
+
+  header h1 { font-size: 1.3rem; font-weight: 700; }
+  header p { font-size: 0.85rem; opacity: 0.8; margin-top: 2px; }
+
+  main { max-width: 900px; margin: 0 auto; padding: 32px 16px; }
+
+  .card {
+    background: white;
+    border-radius: 10px;
+    padding: 24px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    margin-bottom: 24px;
+  }
+
+  .card h2 { font-size: 1rem; font-weight: 600; margin-bottom: 16px; color: #003087; }
+
+  .drop-zone {
+    border: 2px dashed #b0bec5;
+    border-radius: 8px;
+    padding: 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+  }
+
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: #003087;
+    background: #f0f4ff;
+  }
+
+  .drop-zone input[type=file] { display: none; }
+
+  .drop-zone .icon { font-size: 2.5rem; margin-bottom: 8px; }
+  .drop-zone p { color: #555; font-size: 0.95rem; }
+  .drop-zone span { color: #003087; font-weight: 600; cursor: pointer; text-decoration: underline; }
+
+  .filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+
+  .filter-group { display: flex; flex-direction: column; gap: 4px; }
+  .filter-group label { font-size: 0.78rem; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: 0.04em; }
+  .filter-group input, .filter-group select {
+    padding: 8px 12px;
+    border: 1px solid #dde1e7;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    min-width: 180px;
+  }
+  .filter-group input:focus, .filter-group select:focus {
+    outline: none;
+    border-color: #003087;
+    box-shadow: 0 0 0 2px rgba(0,48,135,0.1);
+  }
+
+  .keywords-wrap { flex: 1; min-width: 260px; }
+  .keywords-wrap input { width: 100%; }
+
+  .zip-wrap input { width: 140px; min-width: 0; }
+
+  button {
+    padding: 9px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .btn-primary { background: #003087; color: white; }
+  .btn-primary:hover { background: #002270; }
+  .btn-primary:disabled { background: #90a4ae; cursor: default; }
+
+  .btn-secondary { background: #e8eaf6; color: #003087; }
+  .btn-secondary:hover { background: #d0d5f0; }
+
+  .btn-export { background: #2e7d32; color: white; }
+  .btn-export:hover { background: #1b5e20; }
+
+  .action-row { display: flex; gap: 10px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
+
+  .status-bar {
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 0.88rem;
+    font-weight: 500;
+  }
+  .status-info { background: #e3f2fd; color: #0d47a1; }
+  .status-success { background: #e8f5e9; color: #1b5e20; }
+  .status-warn { background: #fff8e1; color: #e65100; }
+  .status-error { background: #ffebee; color: #b71c1c; }
+
+  .summary-strip {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+
+  .stat {
+    background: #f0f4ff;
+    border-radius: 8px;
+    padding: 12px 18px;
+    text-align: center;
+    min-width: 100px;
+  }
+  .stat .num { font-size: 1.8rem; font-weight: 700; color: #003087; }
+  .stat .lbl { font-size: 0.75rem; color: #555; margin-top: 2px; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+  }
+  thead th {
+    background: #f0f4ff;
+    color: #003087;
+    font-weight: 600;
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 2px solid #d0d5f0;
+    white-space: nowrap;
+  }
+  thead th.sortable { cursor: pointer; user-select: none; }
+  thead th.sortable:hover { background: #dde5ff; }
+  tbody tr:nth-child(even) { background: #fafbff; }
+  tbody tr:hover { background: #eef2ff; }
+  tbody td { padding: 9px 12px; border-bottom: 1px solid #eee; vertical-align: top; }
+
+  .permit-type {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    background: #e8eaf6;
+    color: #3949ab;
+  }
+  .permit-type.demo { background: #fce4ec; color: #ad1457; }
+  .permit-type.new { background: #e8f5e9; color: #2e7d32; }
+  .permit-type.reno { background: #fff3e0; color: #e65100; }
+
+  .col-map { display: flex; flex-direction: column; gap: 8px; }
+  .col-map-row { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; }
+  .col-map-row label { width: 130px; color: #555; font-size: 0.8rem; }
+  .col-map-row select { flex: 1; padding: 5px 8px; border: 1px solid #dde1e7; border-radius: 5px; font-size: 0.85rem; }
+
+  .hidden { display: none !important; }
+
+  .tip {
+    font-size: 0.82rem;
+    color: #777;
+    margin-top: 8px;
+    line-height: 1.5;
+  }
+
+  .chip-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip {
+    background: #e8eaf6;
+    color: #3949ab;
+    border-radius: 12px;
+    padding: 3px 10px;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .chip button {
+    background: none;
+    border: none;
+    color: #3949ab;
+    font-size: 0.9rem;
+    padding: 0;
+    cursor: pointer;
+    line-height: 1;
+  }
+
+  #results-section { display: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+    <rect width="36" height="36" rx="8" fill="white" fill-opacity="0.15"/>
+    <path d="M18 6L6 16h4v14h6v-8h4v8h6V16h4L18 6z" fill="white"/>
+  </svg>
+  <div>
+    <h1>Kitchen Permit Finder</h1>
+    <p>Habitat for Humanity — Cabinet Program Outreach Tool</p>
+  </div>
+</header>
+
+<main>
+
+  <!-- Step 1: Upload -->
+  <div class="card" id="upload-card">
+    <h2>Step 1 — Upload Permit Export</h2>
+    <div class="drop-zone" id="drop-zone">
+      <input type="file" id="file-input" accept=".csv,.tsv,.txt">
+      <div class="icon">📂</div>
+      <p>Drag & drop your permit CSV here, or <span onclick="document.getElementById('file-input').click()">browse to upload</span></p>
+      <p style="font-size:0.8rem;color:#999;margin-top:8px;">Supports CSV and TSV exports from Accela, OpenGov, Tyler Tech, and most municipal permit portals</p>
+    </div>
+    <div id="upload-status" class="hidden status-bar" style="margin-top:12px;"></div>
+  </div>
+
+  <!-- Step 2: Map columns -->
+  <div class="card hidden" id="map-card">
+    <h2>Step 2 — Map Your Columns</h2>
+    <p class="tip">Tell us which columns in your CSV hold each piece of information. We detected the headers below — select the best match for each field.</p>
+    <div class="col-map" id="col-map" style="margin-top:16px;"></div>
+    <div class="action-row">
+      <button class="btn-primary" id="apply-map-btn">Apply Mapping</button>
+      <button class="btn-secondary" id="reset-upload-btn">Upload Different File</button>
+    </div>
+  </div>
+
+  <!-- Step 3: Filter -->
+  <div class="card hidden" id="filter-card">
+    <h2>Step 3 — Filter Permits</h2>
+    <div class="filters">
+      <div class="filter-group zip-wrap">
+        <label>Zip Code</label>
+        <input type="text" id="zip-input" placeholder="e.g. 02601" maxlength="10">
+      </div>
+      <div class="filter-group keywords-wrap">
+        <label>Keywords to match (in permit description / type)</label>
+        <input type="text" id="keyword-input" placeholder="Type a keyword and press Enter">
+      </div>
+    </div>
+    <div class="chip-list" id="keyword-chips"></div>
+    <p class="tip" style="margin-top:12px;">Default keywords: <strong>kitchen, cabinet, demo, demolition, remodel, renovation, gut, addition</strong>. Add or remove terms above.</p>
+    <div class="action-row">
+      <button class="btn-primary" id="run-filter-btn">Find Matching Permits</button>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div id="results-section">
+    <div class="card">
+      <div class="summary-strip" id="summary-strip"></div>
+      <div class="action-row" style="margin-bottom:16px;">
+        <button class="btn-export" id="export-csv-btn">Export Contact List (CSV)</button>
+        <button class="btn-secondary" id="reset-all-btn">Start Over</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table id="results-table">
+          <thead id="results-head"></thead>
+          <tbody id="results-body"></tbody>
+        </table>
+      </div>
+      <p id="no-results" class="hidden" style="text-align:center;color:#888;padding:32px;">No permits matched your filters. Try broadening your keywords or removing the zip code filter.</p>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let rawHeaders = [];
+let rawRows = [];   // array of objects keyed by header
+let mappedData = [];
+let filteredData = [];
+let sortCol = null;
+let sortAsc = true;
+
+const DEFAULT_KEYWORDS = ['kitchen','cabinet','cabinets','demo','demolition','remodel','remodeling','renovation','gut','addition'];
+let activeKeywords = [...DEFAULT_KEYWORDS];
+
+const FIELD_DEFS = [
+  { key: 'address',     label: 'Street Address',  required: true  },
+  { key: 'city',        label: 'City / Town',      required: false },
+  { key: 'zip',         label: 'Zip Code',         required: false },
+  { key: 'owner',       label: 'Owner / Applicant',required: false },
+  { key: 'phone',       label: 'Phone',            required: false },
+  { key: 'email',       label: 'Email',            required: false },
+  { key: 'description', label: 'Description / Work',required: true },
+  { key: 'type',        label: 'Permit Type',      required: false },
+  { key: 'date',        label: 'Issue / Applied Date', required: false },
+  { key: 'permit_no',   label: 'Permit Number',    required: false },
+];
+
+// ── CSV parser ──────────────────────────────────────────────────────────────
+function parseCSV(text) {
+  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  const delim = text.includes('\t') ? '\t' : ',';
+
+  function splitLine(line) {
+    const result = [];
+    let cur = '';
+    let inQuote = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuote && line[i+1] === '"') { cur += '"'; i++; }
+        else inQuote = !inQuote;
+      } else if (ch === delim && !inQuote) {
+        result.push(cur.trim());
+        cur = '';
+      } else {
+        cur += ch;
+      }
+    }
+    result.push(cur.trim());
+    return result;
+  }
+
+  const nonEmpty = lines.filter(l => l.trim());
+  if (nonEmpty.length < 2) return null;
+
+  const headers = splitLine(nonEmpty[0]);
+  const rows = nonEmpty.slice(1).map(line => {
+    const vals = splitLine(line);
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = (vals[i] || '').trim());
+    return obj;
+  });
+  return { headers, rows };
+}
+
+// ── Auto-map columns ────────────────────────────────────────────────────────
+const HINTS = {
+  address:     ['address','street','location','site','addr','property'],
+  city:        ['city','town','municipality','muni'],
+  zip:         ['zip','postal','postcode'],
+  owner:       ['owner','applicant','name','contact','homeowner'],
+  phone:       ['phone','telephone','tel','mobile','cell'],
+  email:       ['email','e-mail','mail'],
+  description: ['description','work','scope','desc','type of work','project','details','narrative'],
+  type:        ['permit type','type','category','class','subtype','work type','permit_type'],
+  date:        ['date','issued','applied','filed','issue date','apply date','application date'],
+  permit_no:   ['permit','number','no','#','permit no','permit number','id','record'],
+};
+
+function autoMap(headers) {
+  const map = {};
+  FIELD_DEFS.forEach(f => {
+    const hints = HINTS[f.key];
+    const match = headers.find(h =>
+      hints.some(hint => h.toLowerCase().includes(hint))
+    );
+    map[f.key] = match || '';
+  });
+  return map;
+}
+
+// ── UI helpers ──────────────────────────────────────────────────────────────
+function show(id) { document.getElementById(id).classList.remove('hidden'); }
+function hide(id) { document.getElementById(id).classList.add('hidden'); }
+function setStatus(id, msg, type) {
+  const el = document.getElementById(id);
+  el.className = `status-bar status-${type}`;
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+function permitTypeClass(val) {
+  if (!val) return '';
+  const v = val.toLowerCase();
+  if (v.includes('demo')) return 'demo';
+  if (v.includes('new')) return 'new';
+  return 'reno';
+}
+
+// ── Keyword chips ───────────────────────────────────────────────────────────
+function renderChips() {
+  const wrap = document.getElementById('keyword-chips');
+  wrap.innerHTML = '';
+  activeKeywords.forEach(kw => {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.innerHTML = `${kw} <button onclick="removeKeyword('${kw}')" title="Remove">×</button>`;
+    wrap.appendChild(chip);
+  });
+}
+
+window.removeKeyword = function(kw) {
+  activeKeywords = activeKeywords.filter(k => k !== kw);
+  renderChips();
+};
+
+document.getElementById('keyword-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const val = e.target.value.trim().toLowerCase();
+    if (val && !activeKeywords.includes(val)) {
+      activeKeywords.push(val);
+      renderChips();
+    }
+    e.target.value = '';
+  }
+});
+
+// ── File upload ─────────────────────────────────────────────────────────────
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+
+function handleFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const parsed = parseCSV(e.target.result);
+    if (!parsed || parsed.headers.length < 2) {
+      setStatus('upload-status', 'Could not parse file. Make sure it is a valid CSV or TSV export.', 'error');
+      return;
+    }
+    rawHeaders = parsed.headers;
+    rawRows = parsed.rows;
+    setStatus('upload-status', `✓ Loaded ${rawRows.length.toLocaleString()} rows with ${rawHeaders.length} columns from "${file.name}"`, 'success');
+    buildColumnMapper();
+    show('map-card');
+    renderChips();
+  };
+  reader.readAsText(file);
+}
+
+// ── Column mapper ───────────────────────────────────────────────────────────
+let currentMap = {};
+
+function buildColumnMapper() {
+  currentMap = autoMap(rawHeaders);
+  const container = document.getElementById('col-map');
+  container.innerHTML = '';
+  FIELD_DEFS.forEach(f => {
+    const row = document.createElement('div');
+    row.className = 'col-map-row';
+    const options = ['(not in file)', ...rawHeaders].map(h =>
+      `<option value="${h}" ${currentMap[f.key] === h ? 'selected' : ''}>${h}</option>`
+    ).join('');
+    row.innerHTML = `
+      <label>${f.label}${f.required ? ' <span style="color:#c00">*</span>' : ''}</label>
+      <select data-field="${f.key}">${options}</select>
+    `;
+    container.appendChild(row);
+  });
+}
+
+document.getElementById('apply-map-btn').addEventListener('click', () => {
+  currentMap = {};
+  document.querySelectorAll('#col-map select').forEach(sel => {
+    const field = sel.dataset.field;
+    const val = sel.value;
+    if (val !== '(not in file)') currentMap[field] = val;
+  });
+
+  if (!currentMap.address && !currentMap.description) {
+    setStatus('upload-status', 'Please map at least an Address or Description column.', 'warn');
+    show('upload-status');
+    return;
+  }
+
+  // Build mapped rows
+  mappedData = rawRows.map(row => {
+    const out = {};
+    FIELD_DEFS.forEach(f => {
+      out[f.key] = currentMap[f.key] ? row[currentMap[f.key]] || '' : '';
+    });
+    return out;
+  }).filter(r => r.address || r.description);
+
+  show('filter-card');
+  hide('map-card');
+});
+
+document.getElementById('reset-upload-btn').addEventListener('click', resetAll);
+
+// ── Filtering ───────────────────────────────────────────────────────────────
+document.getElementById('run-filter-btn').addEventListener('click', runFilter);
+
+function runFilter() {
+  const zip = document.getElementById('zip-input').value.trim();
+  const keywords = activeKeywords;
+
+  filteredData = mappedData.filter(row => {
+    const searchText = [row.description, row.type].join(' ').toLowerCase();
+    const hasKeyword = keywords.length === 0 || keywords.some(kw => searchText.includes(kw));
+    const matchesZip = !zip || row.zip.replace(/\s/g,'').startsWith(zip.replace(/\s/g,''));
+    return hasKeyword && matchesZip;
+  });
+
+  renderResults();
+}
+
+// ── Results ─────────────────────────────────────────────────────────────────
+function renderResults() {
+  const section = document.getElementById('results-section');
+  section.style.display = 'block';
+
+  // Summary
+  const strip = document.getElementById('summary-strip');
+  const types = {};
+  filteredData.forEach(r => {
+    const t = r.type || 'Unknown';
+    types[t] = (types[t] || 0) + 1;
+  });
+  const topType = Object.entries(types).sort((a,b) => b[1]-a[1])[0];
+  strip.innerHTML = `
+    <div class="stat"><div class="num">${filteredData.length}</div><div class="lbl">Matching Permits</div></div>
+    <div class="stat"><div class="num">${new Set(filteredData.map(r => r.address).filter(Boolean)).size}</div><div class="lbl">Unique Addresses</div></div>
+    <div class="stat"><div class="num">${new Set(filteredData.map(r => r.city).filter(Boolean)).size}</div><div class="lbl">Cities / Towns</div></div>
+    ${topType ? `<div class="stat"><div class="num" style="font-size:1.1rem">${topType[0]}</div><div class="lbl">Top Permit Type (${topType[1]})</div></div>` : ''}
+  `;
+
+  const noResults = document.getElementById('no-results');
+  const table = document.getElementById('results-table');
+
+  if (filteredData.length === 0) {
+    noResults.classList.remove('hidden');
+    table.style.display = 'none';
+    return;
+  }
+  noResults.classList.add('hidden');
+  table.style.display = '';
+
+  // Determine which columns have any data
+  const visibleFields = FIELD_DEFS.filter(f =>
+    filteredData.some(r => r[f.key] && r[f.key].trim())
+  );
+
+  // Header
+  document.getElementById('results-head').innerHTML = `<tr>${visibleFields.map(f =>
+    `<th class="sortable" data-col="${f.key}">${f.label} ${sortCol === f.key ? (sortAsc ? '▲' : '▼') : ''}</th>`
+  ).join('')}</tr>`;
+
+  document.querySelectorAll('#results-head th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = th.dataset.col;
+      if (sortCol === col) sortAsc = !sortAsc;
+      else { sortCol = col; sortAsc = true; }
+      renderResults();
+    });
+  });
+
+  // Sort
+  const sorted = [...filteredData].sort((a, b) => {
+    if (!sortCol) return 0;
+    return sortAsc
+      ? (a[sortCol] || '').localeCompare(b[sortCol] || '')
+      : (b[sortCol] || '').localeCompare(a[sortCol] || '');
+  });
+
+  // Body
+  document.getElementById('results-body').innerHTML = sorted.map(r => `<tr>${
+    visibleFields.map(f => {
+      if (f.key === 'type') {
+        const cls = permitTypeClass(r.type);
+        return `<td><span class="permit-type ${cls}">${r.type || '—'}</span></td>`;
+      }
+      return `<td>${r[f.key] || '—'}</td>`;
+    }).join('')
+  }</tr>`).join('');
+}
+
+// ── Sort clicks ─────────────────────────────────────────────────────────────
+// (wired in renderResults above)
+
+// ── Export CSV ───────────────────────────────────────────────────────────────
+document.getElementById('export-csv-btn').addEventListener('click', () => {
+  if (!filteredData.length) return;
+
+  const visibleFields = FIELD_DEFS.filter(f =>
+    filteredData.some(r => r[f.key] && r[f.key].trim())
+  );
+
+  const escape = v => `"${(v || '').replace(/"/g, '""')}"`;
+  const header = visibleFields.map(f => escape(f.label)).join(',');
+  const rows = filteredData.map(r => visibleFields.map(f => escape(r[f.key])).join(','));
+  const csv = [header, ...rows].join('\r\n');
+
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `habitat-kitchen-permits-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+// ── Reset ────────────────────────────────────────────────────────────────────
+function resetAll() {
+  rawHeaders = []; rawRows = []; mappedData = []; filteredData = [];
+  sortCol = null; sortAsc = true;
+  activeKeywords = [...DEFAULT_KEYWORDS];
+  document.getElementById('file-input').value = '';
+  document.getElementById('zip-input').value = '';
+  document.getElementById('keyword-input').value = '';
+  hide('map-card'); hide('filter-card');
+  hide('upload-status');
+  document.getElementById('results-section').style.display = 'none';
+  renderChips();
+}
+
+document.getElementById('reset-all-btn').addEventListener('click', resetAll);
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+renderChips();
+</script>
+</body>
+</html>
