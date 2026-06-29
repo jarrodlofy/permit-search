@@ -1,5 +1,5 @@
 [app]
-name = "plymouth-permit-proxy"
+name = "permit-search"
 primary_region = "bos"
 
 [build]

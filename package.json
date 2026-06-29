@@ -1,5 +1,5 @@
 {
-  "name": "plymouth-permit-proxy",
+  "name": "permit-search",
   "version": "1.0.0",
   "main": "proxy-server.js",
   "scripts": {
