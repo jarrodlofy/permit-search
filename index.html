@@ -277,6 +277,7 @@ function setProgress(pct, msg) {
 // number column (whose X position is consistent across pages).
 
 const RECORD_NUM_RE = /^[A-Z]{1,4}-\d{2}-\d+$/;
+const RECORD_NUM_PREFIX_RE = /^[A-Z]{1,4}-\d{2}-$/;
 
 function median(arr) {
   const s = [...arr].sort((a,b) => a-b);
@@ -285,6 +286,19 @@ function median(arr) {
 
 function parseRecords(pageItems) {
   const records = [];
+
+  // Pre-process: join permit numbers split across lines ("A-26-" + "364" → "A-26-364")
+  for (const items of pageItems) {
+    for (const item of items) {
+      if (RECORD_NUM_PREFIX_RE.test(item.text)) {
+        const cont = items.find(j =>
+          j !== item && Math.abs(j.x - item.x) <= 3 &&
+          j.y > item.y && j.y - item.y < 25 && /^\d+$/.test(j.text)
+        );
+        if (cont) { item.text = item.text + cont.text; cont.text = ''; }
+      }
+    }
+  }
 
   // First pass: find the typical X position of permit numbers across all pages
   const allRecordNums = pageItems.flat().filter(i => RECORD_NUM_RE.test(i.text));
@@ -337,18 +351,18 @@ function parseRecords(pageItems) {
 
     function getCol(x) {
       const dx = x - recordNumX;
-      if (dx < -5)   return 0;  // Record Type
-      if (dx < 38)   return 1;  // Record #
-      if (dx < 135)  return 2;  // Location
-      if (dx < 200)  return 3;  // Mbl
-      if (dx < 290)  return 4;  // Date
-      if (dx < 435)  return 5;  // Description
-      if (dx < 510)  return 6;  // Doc Title
-      if (dx < 590)  return 7;  // Est Cost
-      if (dx < 680)  return 8;  // Applicant
-      if (dx < 760)  return 9;  // Phone
-      if (dx < 885)  return 10; // Owner
-      return 11;                // Total Paid
+      if (dx < -58)  return 0;  // Record Type   (x≈58)
+      if (dx < 16)   return 1;  // Record #      (x≈174)
+      if (dx < 61)   return 2;  // Location      (x≈207)
+      if (dx < 106)  return 3;  // Mbl           (x≈263)
+      if (dx < 145)  return 4;  // Date          (x≈297)
+      if (dx < 211)  return 5;  // Description   (x≈342)
+      if (dx < 276)  return 6;  // Doc Title     (x≈428)
+      if (dx < 326)  return 7;  // Est Cost      (x≈473)
+      if (dx < 379)  return 8;  // Applicant     (x≈528)
+      if (dx < 428)  return 9;  // Phone         (x≈578)
+      if (dx < 493)  return 10; // Owner         (x≈627)
+      return 11;                // Total Paid    (x≈708)
     }
 
     // Assign each band to a record: new record starts at bands whose Y matches a record number Y
