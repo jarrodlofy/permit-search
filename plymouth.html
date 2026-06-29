@@ -261,131 +261,118 @@ function setProgress(pct, msg) {
 }
 
 // ── Table parser ──────────────────────────────────────────────────────────────
-// The Plymouth MA PDF has consistent column positions across all pages.
-// We detect the header row per page to calibrate column X ranges, then
-// assign text items to columns by proximity to the header X positions.
+// Strategy: anchor on permit number items (e.g. A-26-412) which are
+// unambiguous. Collect all items on each page, sort by Y then X, group into
+// row-bands, then assign columns by X position calibrated from the permit
+// number column (whose X position is consistent across pages).
 
-const COL_NAMES = ['Record Type','Record','Location','Mbl','Issued Date','Description','Doc Title','Est Cost','Applicant','Phone','Owner','Total Paid'];
+const RECORD_NUM_RE = /^[A-Z]{1,4}-\d{2}-\d+$/;
+
+function median(arr) {
+  const s = [...arr].sort((a,b) => a-b);
+  return s[Math.floor(s.length/2)];
+}
 
 function parseRecords(pageItems) {
   const records = [];
 
+  // First pass: find the typical X position of permit numbers across all pages
+  const allRecordNums = pageItems.flat().filter(i => RECORD_NUM_RE.test(i.text));
+  if (!allRecordNums.length) return records;
+  const recordNumX = median(allRecordNums.map(i => i.x));
+
   for (const items of pageItems) {
     if (!items.length) continue;
 
-    // Find header row: look for "Record Type" or "Record" label
-    const headerItems = items.filter(i => i.text === 'Record Type' || i.text === 'Record');
-    if (!headerItems.length) continue; // skip non-table pages (e.g. chart page)
+    const recordNumsOnPage = items.filter(i => RECORD_NUM_RE.test(i.text));
+    if (!recordNumsOnPage.length) continue;
 
-    // Build column X positions from full header row
-    // Header texts and their column index
-    const headerMap = {
-      'Record Type': 0, 'Record': 1, 'Location': 2, 'Mbl': 3,
-      'Permit License Issued Date': 4, 'Issued Date': 4,
-      'Description of Work': 5, 'Document Title': 6,
-      'Estimated Cost': 7, 'Applicant Name': 8, 'Applicant PhoneNo': 9,
-      'Owner Name': 10, 'Total Paid': 11
-    };
+    // Sort all items by y then x
+    const sorted = [...items].sort((a,b) => a.y - b.y || a.x - b.x);
 
-    // Find the Y of the header row
-    const recTypeItem = items.find(i => i.text === 'Record Type');
-    if (!recTypeItem) continue;
-    const headerY = recTypeItem.y;
-
-    // Collect all header-row items within ±8px of headerY
-    const headerRow = items.filter(i => Math.abs(i.y - headerY) <= 8);
-
-    // Build colX: array of {x, colIdx} sorted by x
-    const colX = [];
-    for (const hi of headerRow) {
-      // Try exact match first, then partial
-      let colIdx = -1;
-      for (const [key, idx] of Object.entries(headerMap)) {
-        if (hi.text === key || hi.text.startsWith(key.split(' ')[0])) { colIdx = idx; break; }
-      }
-      // Also try substring
-      if (colIdx === -1) {
-        for (const [key, idx] of Object.entries(headerMap)) {
-          if (key.includes(hi.text) || hi.text.includes(key.split(' ')[0])) { colIdx = idx; break; }
-        }
-      }
-      if (colIdx >= 0) colX.push({ x: hi.x, colIdx });
-    }
-    colX.sort((a,b) => a.x - b.x);
-    if (colX.length < 3) continue; // couldn't calibrate
-
-    // Add sentinel at right edge
-    const maxX = Math.max(...items.map(i => i.x)) + 200;
-    colX.push({ x: maxX, colIdx: -1 });
-
-    // Assign column by finding which colX interval the item falls into
-    function getCol(x) {
-      for (let i = 0; i < colX.length - 1; i++) {
-        if (x >= colX[i].x - 5 && x < colX[i+1].x - 5) return colX[i].colIdx;
-      }
-      return -1;
-    }
-
-    // Get data items (below header row, above any footer)
-    const dataItems = items.filter(i => i.y > headerY + 10);
-
-    // Group data items into row bands by Y proximity (within 6px = same row)
+    // Group into row-bands (items within 5px Y of each other share a band)
     const bands = [];
-    for (const item of dataItems.sort((a,b) => a.y - b.y || a.x - b.x)) {
+    for (const item of sorted) {
       const last = bands[bands.length-1];
-      if (last && Math.abs(item.y - last.y) <= 6) {
+      if (last && Math.abs(item.y - last.y) <= 5) {
         last.items.push(item);
+        last.y = (last.y + item.y) / 2; // rolling average
       } else {
         bands.push({ y: item.y, items: [item] });
       }
     }
 
-    // Group bands into records: a new record starts when we see a "Building Permit" or similar type label in col 0
-    // OR when col 1 has a new record number (A-XX-NNN pattern)
-    const RECORD_TYPE_KEYWORDS = ['Building Permit', 'Electrical Permit', 'Plumbing Permit', 'Gas Permit', 'Mechanical Permit', 'Certificate', 'Demolition', 'Sign Permit', 'Fence Permit', 'Pool Permit', 'Sprinkler'];
+    // Find Y positions of all permit numbers on this page
+    const recordBandYs = new Set(
+      recordNumsOnPage.map(rn => {
+        const band = bands.find(b => b.items.some(i => i === rn));
+        return band ? Math.round(band.y) : null;
+      }).filter(Boolean)
+    );
 
+    // Determine column X boundaries from permit number X position
+    // Columns (approximate x ranges relative to recordNumX):
+    // Col 0 (Record Type): x < recordNumX - 5
+    // Col 1 (Record #):    x ≈ recordNumX
+    // Col 2 (Location):    recordNumX + 40 to recordNumX + 130
+    // Col 3 (Mbl):         recordNumX + 135 to recordNumX + 200
+    // Col 4 (Date):        recordNumX + 205 to recordNumX + 290
+    // Col 5 (Description): recordNumX + 295 to recordNumX + 430
+    // Col 6 (Doc Title):   recordNumX + 435 to recordNumX + 510
+    // Col 7 (Est Cost):    recordNumX + 515 to recordNumX + 590
+    // Col 8 (Applicant):   recordNumX + 595 to recordNumX + 680
+    // Col 9 (Phone):       recordNumX + 685 to recordNumX + 760
+    // Col 10 (Owner):      recordNumX + 765 to recordNumX + 880
+    // Col 11 (Total Paid): recordNumX + 885+
+
+    function getCol(x) {
+      const dx = x - recordNumX;
+      if (dx < -5)   return 0;  // Record Type
+      if (dx < 38)   return 1;  // Record #
+      if (dx < 135)  return 2;  // Location
+      if (dx < 200)  return 3;  // Mbl
+      if (dx < 290)  return 4;  // Date
+      if (dx < 435)  return 5;  // Description
+      if (dx < 510)  return 6;  // Doc Title
+      if (dx < 590)  return 7;  // Est Cost
+      if (dx < 680)  return 8;  // Applicant
+      if (dx < 760)  return 9;  // Phone
+      if (dx < 885)  return 10; // Owner
+      return 11;                // Total Paid
+    }
+
+    // Assign each band to a record: new record starts at bands whose Y matches a record number Y
     let currentRecord = null;
+    let currentRecordStartY = -1;
 
     for (const band of bands) {
-      // Classify this band by column
-      const colGroups = {};
-      for (const item of band.items) {
-        const col = getCol(item.x);
-        if (col < 0) continue;
-        if (!colGroups[col]) colGroups[col] = [];
-        colGroups[col].push(item.text);
-      }
+      const bandY = Math.round(band.y);
+      const isRecordStart = recordNumsOnPage.some(rn => Math.abs(rn.y - band.y) <= 5 && band.items.includes(rn));
 
-      const col0text = (colGroups[0] || []).join(' ');
-      const col1text = (colGroups[1] || []).join(' ');
-
-      // Check if this band starts a new record
-      const isNewRecordType = RECORD_TYPE_KEYWORDS.some(k => col0text.includes(k));
-      const isNewRecordNum = /^[A-Z]{1,3}-\d{2}-\d+$/.test(col1text);
-
-      if (isNewRecordType || isNewRecordNum) {
+      if (isRecordStart) {
         if (currentRecord) records.push(currentRecord);
         currentRecord = initRecord();
+        currentRecordStartY = bandY;
       }
 
       if (!currentRecord) continue;
 
-      // Merge into current record
-      for (const [col, texts] of Object.entries(colGroups)) {
-        const c = parseInt(col);
-        const txt = texts.join(' ');
-        if (c === 0 && txt) currentRecord.recordType += (currentRecord.recordType ? ' ' : '') + txt;
-        else if (c === 1 && txt) currentRecord.record += (currentRecord.record ? ' ' : '') + txt;
-        else if (c === 2 && txt) currentRecord.location += (currentRecord.location ? ' ' : '') + txt;
-        else if (c === 3 && txt) currentRecord.mbl += (currentRecord.mbl ? ' ' : '') + txt;
-        else if (c === 4 && txt) currentRecord.issuedDate += (currentRecord.issuedDate ? ' ' : '') + txt;
-        else if (c === 5 && txt) currentRecord.description += (currentRecord.description ? ' ' : '') + txt;
-        else if (c === 6 && txt) currentRecord.docTitle += (currentRecord.docTitle ? ' ' : '') + txt;
-        else if (c === 7 && txt) currentRecord.estCost += (currentRecord.estCost ? ' ' : '') + txt;
-        else if (c === 8 && txt) currentRecord.applicant += (currentRecord.applicant ? ' ' : '') + txt;
-        else if (c === 9 && txt) currentRecord.phone += (currentRecord.phone ? ' ' : '') + txt;
-        else if (c === 10 && txt) currentRecord.owner += (currentRecord.owner ? ' ' : '') + txt;
-        else if (c === 11 && txt) currentRecord.totalPaid += (currentRecord.totalPaid ? ' ' : '') + txt;
+      // Assign items in this band to columns
+      for (const item of band.items) {
+        const col = getCol(item.x);
+        const t = item.text;
+        if      (col === 0)  currentRecord.recordType  += (currentRecord.recordType  ? ' ' : '') + t;
+        else if (col === 1)  currentRecord.record      += (currentRecord.record      ? ' ' : '') + t;
+        else if (col === 2)  currentRecord.location    += (currentRecord.location    ? ' ' : '') + t;
+        else if (col === 3)  currentRecord.mbl         += (currentRecord.mbl         ? ' ' : '') + t;
+        else if (col === 4)  currentRecord.issuedDate  += (currentRecord.issuedDate  ? ' ' : '') + t;
+        else if (col === 5)  currentRecord.description += (currentRecord.description ? ' ' : '') + t;
+        else if (col === 6)  currentRecord.docTitle    += (currentRecord.docTitle    ? ' ' : '') + t;
+        else if (col === 7)  currentRecord.estCost     += (currentRecord.estCost     ? ' ' : '') + t;
+        else if (col === 8)  currentRecord.applicant   += (currentRecord.applicant   ? ' ' : '') + t;
+        else if (col === 9)  currentRecord.phone       += (currentRecord.phone       ? ' ' : '') + t;
+        else if (col === 10) currentRecord.owner       += (currentRecord.owner       ? ' ' : '') + t;
+        else if (col === 11) currentRecord.totalPaid   += (currentRecord.totalPaid   ? ' ' : '') + t;
       }
     }
     if (currentRecord) records.push(currentRecord);
