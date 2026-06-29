@@ -85,8 +85,34 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (url.pathname === '/api/duxbury-pdf') {
+    const month = (url.searchParams.get('month') || '').toLowerCase().replace(/[^a-z]/g, '');
+    const year = parseInt(url.searchParams.get('year') || '2026');
+    if (!month || isNaN(year)) return send(res, 400, 'application/json', JSON.stringify({ error: 'Requires month and year params' }));
+
+    // Duxbury uses inconsistent naming — try two common patterns
+    const patterns = [
+      `https://www.town.duxbury.ma.us/sites/g/files/vyhlif10506/f/uploads/${month}_${year}_bldg_permit_report.pdf`,
+      `https://www.town.duxbury.ma.us/municipal-services/files/${month}-${year}-building-permit-listing-report`,
+    ];
+
+    let fetched = null;
+    for (const pdfUrl of patterns) {
+      log(`Trying Duxbury URL: ${pdfUrl}`);
+      try {
+        const { status, buffer } = await fetchBinary(pdfUrl);
+        if (status === 200 && buffer.length > 1000) { fetched = { pdfUrl, buffer }; break; }
+      } catch (e) { log(`Failed: ${e.message}`); }
+    }
+
+    if (!fetched) return send(res, 502, 'application/json', JSON.stringify({ error: 'Could not fetch Duxbury PDF — URL pattern may have changed' }));
+    log(`Returning Duxbury PDF (${fetched.buffer.length} bytes) from ${fetched.pdfUrl}`);
+    send(res, 200, 'application/pdf', fetched.buffer);
+    return;
+  }
+
   if (url.pathname === '/') {
-    return send(res, 200, 'application/json', JSON.stringify({ endpoints: ['GET /api/plymouth-pdf?adid=552'] }));
+    return send(res, 200, 'application/json', JSON.stringify({ endpoints: ['GET /api/plymouth-pdf?adid=552', 'GET /api/duxbury-pdf?month=april&year=2026'] }));
   }
 
   send(res, 404, 'application/json', JSON.stringify({ error: 'Not found' }));
