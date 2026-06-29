@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SE Mass Permit Finder</title>
+<title>South Shore Permit Search</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #222; }
-  header { background: #1a5276; color: white; padding: 18px 28px; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f4f6f8; color: #222; }
+  header { background: #00AFD7; color: white; padding: 18px 28px; }
   header h1 { font-size: 1.3rem; font-weight: 600; }
   header p { font-size: 0.85rem; opacity: 0.8; margin-top: 4px; }
   .container { max-width: 1300px; margin: 0 auto; padding: 24px; }
@@ -18,57 +18,57 @@
   /* Town fetch cards */
   .town-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
   .town-card { border: 1px solid #dde; border-radius: 7px; padding: 16px; }
-  .town-card h3 { font-size: 0.9rem; font-weight: 600; margin-bottom: 10px; color: #1a5276; }
+  .town-card h3 { font-size: 0.9rem; font-weight: 600; margin-bottom: 10px; color: #00AFD7; }
   .town-card p { font-size: 0.8rem; color: #666; margin-top: 8px; }
   .town-error { font-size: 0.78rem; color: #c0392b; margin-top:6px; display:none; }
 
-  .btn { display: inline-block; padding: 8px 16px; background: #1a5276; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 0.85rem; }
-  .btn:hover { background: #154360; }
+  .btn { display: inline-block; padding: 8px 16px; background: #00AFD7; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 0.85rem; }
+  .btn:hover { background: #0093b8; }
   .btn:disabled { background: #999; cursor: default; }
   .btn-sm { padding: 5px 12px; font-size: 0.78rem; }
-  .btn-outline { background: transparent; border: 1px solid #1a5276; color: #1a5276; }
-  .btn-outline:hover { background: #eaf0fb; }
+  .btn-outline { background: transparent; border: 1px solid #00AFD7; color: #00AFD7; }
+  .btn-outline:hover { background: #e6f7fb; }
 
   /* Drop zone */
   .drop-zone { border: 2px dashed #ccc; border-radius: 6px; padding: 18px; text-align: center; cursor: pointer; font-size: 0.82rem; color: #888; margin-top: 10px; }
-  .drop-zone:hover, .drop-zone.dragover { border-color: #1a5276; background: #eaf0fb; color: #1a5276; }
+  .drop-zone:hover, .drop-zone.dragover { border-color: #00AFD7; background: #e6f7fb; color: #00AFD7; }
   .drop-zone input[type=file] { display: none; }
 
   /* Progress */
   .progress-wrap { display:none; margin-top: 10px; }
   .progress-bar-bg { background: #e0e0e0; border-radius: 4px; height: 6px; }
-  .progress-bar { background: #1a5276; height: 6px; border-radius: 4px; width: 0%; transition: width 0.1s; }
+  .progress-bar { background: #00AFD7; height: 6px; border-radius: 4px; width: 0%; transition: width 0.1s; }
   .progress-msg { font-size: 0.78rem; color: #666; margin-top: 4px; }
 
   /* Filters */
   .filter-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
   .chips { display: flex; flex-wrap: wrap; gap: 5px; }
   .chip { padding: 3px 10px; border-radius: 20px; font-size: 0.76rem; cursor: pointer; user-select: none; border: 1px solid transparent; }
-  .chip.kw     { background: #1a5276; color: white; }
+  .chip.kw     { background: #00AFD7; color: white; }
   .chip.kw.off { background: #eee; color: #888; border-color: #ddd; }
-  .chip.town   { background: #117a65; color: white; }
+  .chip.town   { background: #43B02A; color: white; }
   .chip.town.off { background: #eee; color: #888; border-color: #ddd; }
   label { font-size: 0.82rem; color: #555; white-space: nowrap; }
   input[type=text] { padding: 5px 9px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.82rem; }
 
   /* Stats */
   .stats { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 14px; }
-  .stat .num { font-size: 1.6rem; font-weight: 700; color: #1a5276; }
+  .stat .num { font-size: 1.6rem; font-weight: 700; color: #00AFD7; }
   .stat .lbl { font-size: 0.72rem; color: #888; }
 
   /* Table */
   #results-panel { display: none; }
   table { width: 100%; border-collapse: collapse; font-size: 0.81rem; }
-  thead th { background: #1a5276; color: white; padding: 8px 9px; text-align: left; font-weight: 600; position: sticky; top: 0; cursor: pointer; white-space: nowrap; }
-  thead th:hover { background: #154360; }
+  thead th { background: #00AFD7; color: white; padding: 8px 9px; text-align: left; font-weight: 600; position: sticky; top: 0; cursor: pointer; white-space: nowrap; }
+  thead th:hover { background: #003f8f; }
   tbody tr:nth-child(even) { background: #f9f9f9; }
-  tbody tr:hover { background: #eaf0fb; }
+  tbody tr:hover { background: #e6f7fb; }
   td { padding: 7px 9px; border-bottom: 1px solid #eee; vertical-align: top; }
   td.desc { max-width: 260px; }
   td.nowrap { white-space: nowrap; }
   .badge { display:inline-block; padding:2px 7px; border-radius:10px; font-size:0.7rem; font-weight:600; white-space:nowrap; }
-  .badge-plymouth { background:#d6eaf8; color:#1a5276; }
-  .badge-duxbury  { background:#d5f5e3; color:#117a65; }
+  .badge-plymouth { background:#cceaf6; color:#00AFD7; }
+  .badge-duxbury  { background:#d5f5d5; color:#2d7a1e; }
   .badge-hingham  { background:#fdebd0; color:#784212; }
   .badge-cohasset { background:#f9ebea; color:#7b241c; }
   .no-results { padding: 30px; text-align: center; color: #999; }
@@ -78,8 +78,8 @@
 <body>
 
 <header>
-  <h1>SE Mass Permit Finder</h1>
-  <p>Habitat for Humanity Cabinet Program — search kitchen &amp; remodel permits across municipalities</p>
+  <h1>South Shore Permit Search</h1>
+  <p>Habitat for Humanity Cabinet Program — Search kitchen &amp; remodel permits across municipalities</p>
 </header>
 
 <div class="container">
@@ -102,7 +102,7 @@
           <input type="file" id="fi-plymouth" accept=".pdf">
           or upload PDF manually
         </div>
-        <p>Source: <a href="https://www.plymouth-ma.gov/Archive.aspx?ADID=552" target="_blank" style="color:#1a5276;">May 2026</a> · <a href="https://www.plymouth-ma.gov/building-department/pages/monthly-building-permits" target="_blank" style="color:#1a5276;">All months</a></p>
+        <p>Source: <a href="https://www.plymouth-ma.gov/Archive.aspx?ADID=552" target="_blank" style="color:#00AFD7;">May 2026</a> · <a href="https://www.plymouth-ma.gov/building-department/pages/monthly-building-permits" target="_blank" style="color:#00AFD7;">All months</a></p>
       </div>
 
       <!-- Duxbury -->
@@ -118,7 +118,7 @@
           <input type="file" id="fi-duxbury" accept=".pdf">
           or upload PDF manually
         </div>
-        <p>Source: <a href="https://www.town.duxbury.ma.us/building-department/pages/building-permits-issued" target="_blank" style="color:#1a5276;">Duxbury Building Permits</a></p>
+        <p>Source: <a href="https://www.town.duxbury.ma.us/building-department/pages/building-permits-issued" target="_blank" style="color:#00AFD7;">Duxbury Building Permits</a></p>
       </div>
 
       <!-- Cohasset -->
@@ -134,7 +134,7 @@
           <input type="file" id="fi-cohasset" accept=".pdf">
           or upload PDF manually
         </div>
-        <p>Source: <a href="https://www.cohassetma.gov/393/Building-Permit-Logs" target="_blank" style="color:#1a5276;">Cohasset Building Permit Logs</a></p>
+        <p>Source: <a href="https://www.cohassetma.gov/393/Building-Permit-Logs" target="_blank" style="color:#00AFD7;">Cohasset Building Permit Logs</a></p>
       </div>
 
       <!-- Hingham -->
@@ -150,7 +150,7 @@
           <input type="file" id="fi-hingham" accept=".pdf">
           or upload PDF manually
         </div>
-        <p>Source: <a href="https://www.hingham-ma.gov/207/Building" target="_blank" style="color:#1a5276;">Hingham Building Dept</a> (rolling ~2 week window)</p>
+        <p>Source: <a href="https://www.hingham-ma.gov/207/Building" target="_blank" style="color:#00AFD7;">Hingham Building Dept</a> (rolling ~2 week window)</p>
       </div>
 
     </div>
