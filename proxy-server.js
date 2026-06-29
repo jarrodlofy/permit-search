@@ -111,6 +111,31 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (url.pathname === '/api/cohasset-pdf') {
+    const adid = parseInt(url.searchParams.get('adid') || '447');
+    if (isNaN(adid) || adid < 1) return send(res, 400, 'application/json', JSON.stringify({ error: 'Invalid adid' }));
+    if (cache[`cohasset-${adid}`]) {
+      log(`Serving Cohasset adid=${adid} from cache`);
+      return send(res, 200, 'application/pdf', cache[`cohasset-${adid}`].buffer);
+    }
+    const pdfUrl = `https://www.cohassetma.gov/Archive.aspx?ADID=${adid}`;
+    log(`Fetching Cohasset PDF: ${pdfUrl}`);
+    try {
+      const { status, buffer } = await fetchBinary(pdfUrl);
+      if (status !== 200) return send(res, 502, 'application/json', JSON.stringify({ error: `Cohasset returned HTTP ${status}` }));
+      cache[`cohasset-${adid}`] = { buffer, cachedAt: Date.now() };
+      // Evict oldest beyond 2 cohasset entries
+      const keys = Object.keys(cache).filter(k => k.startsWith('cohasset-')).sort();
+      for (const old of keys.slice(0, -2)) { delete cache[old]; }
+      log(`Cached Cohasset adid=${adid} (${buffer.length} bytes)`);
+      send(res, 200, 'application/pdf', buffer);
+    } catch (e) {
+      log(`Error: ${e.message}`);
+      send(res, 502, 'application/json', JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
   if (url.pathname === '/api/hingham-pdf') {
     const pdfUrl = 'https://www.hingham-ma.gov/DocumentCenter/View/1833/Building-Permits-Recently-Issued---Updated-PDF';
     if (cache['hingham']) {
