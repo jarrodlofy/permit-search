@@ -98,10 +98,6 @@
           <div class="progress-bar-bg"><div class="progress-bar" id="bar-plymouth"></div></div>
           <div class="progress-msg" id="msg-plymouth"></div>
         </div>
-        <div class="drop-zone" id="dz-plymouth">
-          <input type="file" id="fi-plymouth" accept=".pdf">
-          or upload PDF manually
-        </div>
         <p>Source: <a href="https://www.plymouth-ma.gov/Archive.aspx?ADID=552" target="_blank" style="color:#00AFD7;">May 2026</a> · <a href="https://www.plymouth-ma.gov/building-department/pages/monthly-building-permits" target="_blank" style="color:#00AFD7;">All months</a></p>
       </div>
 
@@ -113,10 +109,6 @@
         <div class="progress-wrap" id="prog-duxbury">
           <div class="progress-bar-bg"><div class="progress-bar" id="bar-duxbury"></div></div>
           <div class="progress-msg" id="msg-duxbury"></div>
-        </div>
-        <div class="drop-zone" id="dz-duxbury">
-          <input type="file" id="fi-duxbury" accept=".pdf">
-          or upload PDF manually
         </div>
         <p>Source: <a href="https://www.town.duxbury.ma.us/building-department/pages/building-permits-issued" target="_blank" style="color:#00AFD7;">Duxbury Building Permits</a></p>
       </div>
@@ -130,10 +122,6 @@
           <div class="progress-bar-bg"><div class="progress-bar" id="bar-cohasset"></div></div>
           <div class="progress-msg" id="msg-cohasset"></div>
         </div>
-        <div class="drop-zone" id="dz-cohasset">
-          <input type="file" id="fi-cohasset" accept=".pdf">
-          or upload PDF manually
-        </div>
         <p>Source: <a href="https://www.cohassetma.gov/393/Building-Permit-Logs" target="_blank" style="color:#00AFD7;">Cohasset Building Permit Logs</a></p>
       </div>
 
@@ -146,13 +134,23 @@
           <div class="progress-bar-bg"><div class="progress-bar" id="bar-hingham"></div></div>
           <div class="progress-msg" id="msg-hingham"></div>
         </div>
-        <div class="drop-zone" id="dz-hingham">
-          <input type="file" id="fi-hingham" accept=".pdf">
-          or upload PDF manually
-        </div>
         <p>Source: <a href="https://www.hingham-ma.gov/207/Building" target="_blank" style="color:#00AFD7;">Hingham Building Dept</a> (rolling ~2 week window)</p>
       </div>
 
+    </div>
+  </div>
+
+  <!-- Manual Upload -->
+  <div class="panel">
+    <h2>Upload PDF Manually</h2>
+    <div class="drop-zone" id="dz-upload">
+      <input type="file" id="fi-upload" accept=".pdf">
+      Drop any town's permit PDF here, or click to browse — town is detected automatically
+    </div>
+    <div class="town-error" id="err-upload" style="margin-top:8px;"></div>
+    <div class="progress-wrap" id="prog-upload" style="margin-top:8px;">
+      <div class="progress-bar-bg"><div class="progress-bar" id="bar-upload"></div></div>
+      <div class="progress-msg" id="msg-upload"></div>
     </div>
   </div>
 
@@ -224,20 +222,39 @@ let keywords = ['kitchen','cabinet','demo','demolition','remodel','renovation','
 let activeKeywords = new Set();
 let sortCol = null, sortDir = 1;
 
-// ── Drop zones ────────────────────────────────────────────────────────────────
-['plymouth','duxbury','hingham','cohasset'].forEach(town => {
-  const dz = document.getElementById(`dz-${town}`);
-  const fi = document.getElementById(`fi-${town}`);
-  dz.addEventListener('click', () => fi.click());
-  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
-  dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
-  dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('dragover'); loadFile(e.dataTransfer.files[0], town); });
-  fi.addEventListener('change', () => loadFile(fi.files[0], town));
-});
+// ── Single upload drop zone ───────────────────────────────────────────────────
+const dzUpload = document.getElementById('dz-upload');
+const fiUpload = document.getElementById('fi-upload');
+dzUpload.addEventListener('click', () => fiUpload.click());
+dzUpload.addEventListener('dragover', e => { e.preventDefault(); dzUpload.classList.add('dragover'); });
+dzUpload.addEventListener('dragleave', () => dzUpload.classList.remove('dragover'));
+dzUpload.addEventListener('drop', e => { e.preventDefault(); dzUpload.classList.remove('dragover'); loadFile(e.dataTransfer.files[0]); });
+fiUpload.addEventListener('change', () => { loadFile(fiUpload.files[0]); fiUpload.value = ''; });
 
-async function loadFile(file, town) {
+async function loadFile(file) {
   if (!file || file.type !== 'application/pdf') { alert('Please select a PDF file.'); return; }
-  await processPdf(await file.arrayBuffer(), town);
+  const buf = await file.arrayBuffer();
+  const town = await detectTown(buf);
+  const errEl = document.getElementById('err-upload');
+  if (!town) {
+    errEl.textContent = 'Could not detect town from this PDF. Make sure it is a Plymouth, Duxbury, Hingham, or Cohasset permit report.';
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+  await processPdf(buf, town, 'upload');
+}
+
+async function detectTown(arrayBuffer) {
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer.slice(0) }).promise;
+  const page = await pdf.getPage(1);
+  const tc = await page.getTextContent();
+  const text = tc.items.map(i => i.str).join(' ').toLowerCase();
+  if (text.includes('plymouth')) return 'plymouth';
+  if (text.includes('duxbury')) return 'duxbury';
+  if (text.includes('hingham')) return 'hingham';
+  if (text.includes('cohasset')) return 'cohasset';
+  return null;
 }
 
 // ── Fetch ─────────────────────────────────────────────────────────────────────
@@ -256,7 +273,7 @@ async function fetchTown(town) {
     const buf = await res.arrayBuffer();
     btn.disabled = false;
     btn.textContent = cfg.btnLabel;
-    await processPdf(buf, town);
+    await processPdf(buf, town, town);
   } catch (e) {
     btn.disabled = false;
     btn.textContent = cfg.btnLabel;
@@ -266,18 +283,18 @@ async function fetchTown(town) {
   }
 }
 
-function setProgress(town, pct, msg) {
-  document.getElementById(`prog-${town}`).style.display = 'block';
-  document.getElementById(`bar-${town}`).style.width = pct + '%';
-  document.getElementById(`msg-${town}`).textContent = msg;
+function setProgress(progressId, pct, msg) {
+  document.getElementById(`prog-${progressId}`).style.display = 'block';
+  document.getElementById(`bar-${progressId}`).style.width = pct + '%';
+  document.getElementById(`msg-${progressId}`).textContent = msg;
 }
-function hideProgress(town) {
-  document.getElementById(`prog-${town}`).style.display = 'none';
+function hideProgress(progressId) {
+  document.getElementById(`prog-${progressId}`).style.display = 'none';
 }
 
 // ── PDF processing ────────────────────────────────────────────────────────────
-async function processPdf(arrayBuffer, town) {
-  setProgress(town, 10, 'Extracting text…');
+async function processPdf(arrayBuffer, town, progressId) {
+  setProgress(progressId, 10, 'Extracting text…');
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
   const totalPages = pdf.numPages;
   const pageItems = [];
@@ -290,25 +307,48 @@ async function processPdf(arrayBuffer, town) {
       .filter(i => i.str && i.str.trim())
       .map(i => ({ text: i.str.trim(), x: i.transform[4], y: vp.height - i.transform[5] }));
     pageItems.push(items);
-    if (p % 10 === 0) setProgress(town, 10 + Math.round((p / totalPages) * 65), `Page ${p}/${totalPages}…`);
+    if (p % 10 === 0) setProgress(progressId, 10 + Math.round((p / totalPages) * 65), `Page ${p}/${totalPages}…`);
   }
 
-  setProgress(town, 80, 'Parsing records…');
+  setProgress(progressId, 80, 'Parsing records…');
   const parsed = town === 'duxbury' ? parseDuxbury(pageItems) : town === 'hingham' ? parseHingham(pageItems) : town === 'cohasset' ? parseCohasset(pageItems) : parsePlymouth(pageItems);
   const tagged = parsed.map(r => ({ ...r, municipality: town }));
 
-  // Replace records for this town
   allRecords = allRecords.filter(r => r.municipality !== town).concat(tagged);
   loadedTowns.add(town);
   activeTowns.add(town);
+  saveToStorage();
 
-  setProgress(town, 100, `Done — ${tagged.length} records.`);
+  setProgress(progressId, 100, `Done — ${tagged.length} records loaded for ${TOWNS[town].label}.`);
   document.getElementById('filter-panel').style.display = 'block';
   document.getElementById('results-panel').style.display = 'block';
   renderTownChips();
   renderKwChips();
   renderTable();
 }
+
+// ── Local storage ─────────────────────────────────────────────────────────────
+function saveToStorage() {
+  try { localStorage.setItem('permit-records', JSON.stringify(allRecords)); } catch(e) {}
+}
+
+function loadFromStorage() {
+  try {
+    const saved = localStorage.getItem('permit-records');
+    if (!saved) return;
+    const records = JSON.parse(saved);
+    if (!records.length) return;
+    allRecords = records;
+    for (const r of records) { loadedTowns.add(r.municipality); activeTowns.add(r.municipality); }
+    document.getElementById('filter-panel').style.display = 'block';
+    document.getElementById('results-panel').style.display = 'block';
+    renderTownChips();
+    renderKwChips();
+    renderTable();
+  } catch(e) {}
+}
+
+loadFromStorage();
 
 // ── Shared parser utilities ───────────────────────────────────────────────────
 const RECORD_NUM_RE = /^[A-Z]{1,4}-\d{2}-\d+$/;
