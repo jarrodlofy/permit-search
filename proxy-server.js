@@ -9,9 +9,10 @@ function log(msg) {
   console.log(`[${new Date().toISOString()}] ${msg}`);
 }
 
-function fetchBinary(url) {
+function fetchBinary(url, baseUrl) {
   return new Promise((resolve, reject) => {
-    const parsed = new URL(url);
+    const resolved = new URL(url, baseUrl || url).href;
+    const parsed = new URL(resolved);
     const opts = {
       hostname: parsed.hostname,
       path: parsed.pathname + parsed.search,
@@ -19,7 +20,7 @@ function fetchBinary(url) {
     };
     https.get(opts, res => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        return resolve(fetchBinary(res.headers.location));
+        return resolve(fetchBinary(res.headers.location, resolved));
       }
       const chunks = [];
       res.on('data', c => chunks.push(c));
