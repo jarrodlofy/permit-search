@@ -92,7 +92,7 @@
       <!-- Plymouth -->
       <div class="town-card">
         <h3>Plymouth MA</h3>
-        <button class="btn" id="btn-plymouth" onclick="fetchTown('plymouth')">Fetch May 2026 Report</button>
+        <button class="btn" id="btn-plymouth" onclick="fetchTown('plymouth')">Check Latest Report</button>
         <div class="town-error" id="err-plymouth"></div>
         <div class="progress-wrap" id="prog-plymouth">
           <div class="progress-bar-bg"><div class="progress-bar" id="bar-plymouth"></div></div>
@@ -104,7 +104,7 @@
       <!-- Duxbury -->
       <div class="town-card">
         <h3>Duxbury MA</h3>
-        <button class="btn" id="btn-duxbury" onclick="fetchTown('duxbury')">Fetch April 2026 Report</button>
+        <button class="btn" id="btn-duxbury" onclick="fetchTown('duxbury')">Check Latest Report</button>
         <div class="town-error" id="err-duxbury"></div>
         <div class="progress-wrap" id="prog-duxbury">
           <div class="progress-bar-bg"><div class="progress-bar" id="bar-duxbury"></div></div>
@@ -116,7 +116,7 @@
       <!-- Cohasset -->
       <div class="town-card">
         <h3>Cohasset MA</h3>
-        <button class="btn" id="btn-cohasset" onclick="fetchTown('cohasset')">Fetch April 2026 Report</button>
+        <button class="btn" id="btn-cohasset" onclick="fetchTown('cohasset')">Check Latest Report</button>
         <div class="town-error" id="err-cohasset"></div>
         <div class="progress-wrap" id="prog-cohasset">
           <div class="progress-bar-bg"><div class="progress-bar" id="bar-cohasset"></div></div>
@@ -128,7 +128,7 @@
       <!-- Hingham -->
       <div class="town-card">
         <h3>Hingham MA</h3>
-        <button class="btn" id="btn-hingham" onclick="fetchTown('hingham')">Fetch Latest Report</button>
+        <button class="btn" id="btn-hingham" onclick="fetchTown('hingham')">Check Latest Report</button>
         <div class="town-error" id="err-hingham"></div>
         <div class="progress-wrap" id="prog-hingham">
           <div class="progress-bar-bg"><div class="progress-bar" id="bar-hingham"></div></div>
@@ -195,22 +195,22 @@ const TOWNS = {
   plymouth: {
     label: 'Plymouth',
     fetchUrl: `${FLY}/api/plymouth-pdf?adid=552`,
-    btnLabel: 'Fetch May 2026 Report',
+    btnLabel: 'Check Latest Report',
   },
   duxbury: {
     label: 'Duxbury',
     fetchUrl: `${FLY}/api/duxbury-pdf?month=april&year=2026`,
-    btnLabel: 'Fetch April 2026 Report',
+    btnLabel: 'Check Latest Report',
   },
   hingham: {
     label: 'Hingham',
     fetchUrl: `${FLY}/api/hingham-pdf`,
-    btnLabel: 'Fetch Latest Report',
+    btnLabel: 'Check Latest Report',
   },
   cohasset: {
     label: 'Cohasset',
     fetchUrl: `${FLY}/api/cohasset-pdf?adid=447`,
-    btnLabel: 'Fetch April 2026 Report',
+    btnLabel: 'Check Latest Report',
   }
 };
 
@@ -319,7 +319,8 @@ async function processPdf(arrayBuffer, town, progressId) {
   activeTowns.add(town);
   saveToStorage();
 
-  setProgress(progressId, 100, `Done — ${tagged.length} records loaded for ${TOWNS[town].label}.`);
+  const reportPeriod = detectReportPeriod(pageItems);
+  setProgress(progressId, 100, `Done — ${tagged.length} records loaded for ${TOWNS[town].label}${reportPeriod ? ` (${reportPeriod})` : ''}.`);
   document.getElementById('filter-panel').style.display = 'block';
   document.getElementById('results-panel').style.display = 'block';
   renderTownChips();
@@ -349,6 +350,13 @@ function loadFromStorage() {
 }
 
 loadFromStorage();
+
+// ── Report period detection ───────────────────────────────────────────────────
+function detectReportPeriod(pageItems) {
+  const text = pageItems[0].map(i => i.text).join(' ');
+  const m = text.match(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(20\d{2})\b/i);
+  return m ? `${m[1]} ${m[2]}` : null;
+}
 
 // ── Shared parser utilities ───────────────────────────────────────────────────
 const RECORD_NUM_RE = /^[A-Z]{1,4}-\d{2}-\d+$/;
