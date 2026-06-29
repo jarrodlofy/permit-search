@@ -1,5 +1,5 @@
 app = "permit-search"
-primary_region = "bos"
+primary_region = "ewr"
 
 [http_service]
 internal_port = 3001
