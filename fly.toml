@@ -1,8 +1,5 @@
-[app]
-name = "permit-search"
+app = "permit-search"
 primary_region = "bos"
-
-[build]
 
 [http_service]
 internal_port = 3001
