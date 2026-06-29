@@ -3,281 +3,279 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Plymouth MA — Kitchen Permit Finder</title>
+<title>SE Mass Permit Finder</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #222; }
   header { background: #1a5276; color: white; padding: 18px 28px; }
   header h1 { font-size: 1.3rem; font-weight: 600; }
   header p { font-size: 0.85rem; opacity: 0.8; margin-top: 4px; }
-  .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+  .container { max-width: 1300px; margin: 0 auto; padding: 24px; }
 
   .panel { background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
   .panel h2 { font-size: 1rem; font-weight: 600; margin-bottom: 14px; color: #333; }
 
-  /* Archive links */
-  .archive-grid { display: flex; flex-wrap: wrap; gap: 8px; }
-  .archive-link { display: inline-block; padding: 6px 12px; background: #eaf0fb; border: 1px solid #b3c6f0; border-radius: 4px; font-size: 0.82rem; color: #1a5276; text-decoration: none; }
-  .archive-link:hover { background: #d0e0f8; }
+  /* Town fetch cards */
+  .town-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+  .town-card { border: 1px solid #dde; border-radius: 7px; padding: 16px; }
+  .town-card h3 { font-size: 0.9rem; font-weight: 600; margin-bottom: 10px; color: #1a5276; }
+  .town-card p { font-size: 0.8rem; color: #666; margin-top: 8px; }
+  .town-error { font-size: 0.78rem; color: #c0392b; margin-top:6px; display:none; }
 
-  /* Auto-fetch */
-  .fetch-section { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-  .fetch-section p { font-size: 0.85rem; color: #555; }
-  .divider { display: flex; align-items: center; gap: 10px; margin: 18px 0; color: #aaa; font-size: 0.8rem; }
-  .divider::before, .divider::after { content: ''; flex: 1; border-top: 1px solid #ddd; }
-
-  /* Drop zone */
-  .drop-zone { border: 2px dashed #aaa; border-radius: 8px; padding: 40px; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; }
-  .drop-zone.dragover { border-color: #1a5276; background: #eaf0fb; }
-  .drop-zone input[type=file] { display: none; }
-  .drop-zone p { color: #666; font-size: 0.9rem; }
-  .drop-zone .hint { font-size: 0.8rem; color: #999; margin-top: 6px; }
-  .btn { display: inline-block; padding: 9px 20px; background: #1a5276; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 0.9rem; }
+  .btn { display: inline-block; padding: 8px 16px; background: #1a5276; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 0.85rem; }
   .btn:hover { background: #154360; }
   .btn:disabled { background: #999; cursor: default; }
+  .btn-sm { padding: 5px 12px; font-size: 0.78rem; }
+  .btn-outline { background: transparent; border: 1px solid #1a5276; color: #1a5276; }
+  .btn-outline:hover { background: #eaf0fb; }
 
-  /* Filters */
-  .filter-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-  .chip { padding: 4px 10px; background: #1a5276; color: white; border-radius: 20px; font-size: 0.78rem; cursor: pointer; user-select: none; }
-  .chip.off { background: #ccc; color: #555; }
-  label { font-size: 0.85rem; color: #555; }
-  input[type=text] { padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.85rem; width: 180px; }
+  /* Drop zone */
+  .drop-zone { border: 2px dashed #ccc; border-radius: 6px; padding: 18px; text-align: center; cursor: pointer; font-size: 0.82rem; color: #888; margin-top: 10px; }
+  .drop-zone:hover, .drop-zone.dragover { border-color: #1a5276; background: #eaf0fb; color: #1a5276; }
+  .drop-zone input[type=file] { display: none; }
 
   /* Progress */
-  #progress { display: none; }
-  .progress-bar-wrap { background: #e0e0e0; border-radius: 4px; height: 8px; margin-top: 8px; }
-  .progress-bar { background: #1a5276; height: 8px; border-radius: 4px; width: 0%; transition: width 0.1s; }
-  #status-msg { font-size: 0.85rem; color: #555; margin-top: 6px; }
+  .progress-wrap { display:none; margin-top: 10px; }
+  .progress-bar-bg { background: #e0e0e0; border-radius: 4px; height: 6px; }
+  .progress-bar { background: #1a5276; height: 6px; border-radius: 4px; width: 0%; transition: width 0.1s; }
+  .progress-msg { font-size: 0.78rem; color: #666; margin-top: 4px; }
 
-  /* Results */
+  /* Filters */
+  .filter-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .chip { padding: 3px 10px; border-radius: 20px; font-size: 0.76rem; cursor: pointer; user-select: none; border: 1px solid transparent; }
+  .chip.kw     { background: #1a5276; color: white; }
+  .chip.kw.off { background: #eee; color: #888; border-color: #ddd; }
+  .chip.town   { background: #117a65; color: white; }
+  .chip.town.off { background: #eee; color: #888; border-color: #ddd; }
+  label { font-size: 0.82rem; color: #555; white-space: nowrap; }
+  input[type=text] { padding: 5px 9px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.82rem; }
+
+  /* Stats */
+  .stats { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 14px; }
+  .stat .num { font-size: 1.6rem; font-weight: 700; color: #1a5276; }
+  .stat .lbl { font-size: 0.72rem; color: #888; }
+
+  /* Table */
   #results-panel { display: none; }
-  .stats { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 16px; }
-  .stat { text-align: center; }
-  .stat .num { font-size: 1.8rem; font-weight: 700; color: #1a5276; }
-  .stat .lbl { font-size: 0.75rem; color: #666; }
-
-  table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
-  thead th { background: #1a5276; color: white; padding: 9px 10px; text-align: left; font-weight: 600; position: sticky; top: 0; cursor: pointer; white-space: nowrap; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.81rem; }
+  thead th { background: #1a5276; color: white; padding: 8px 9px; text-align: left; font-weight: 600; position: sticky; top: 0; cursor: pointer; white-space: nowrap; }
   thead th:hover { background: #154360; }
   tbody tr:nth-child(even) { background: #f9f9f9; }
   tbody tr:hover { background: #eaf0fb; }
-  td { padding: 8px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
-  td.desc { max-width: 280px; }
-  td.addr { white-space: nowrap; }
-  td.phone { white-space: nowrap; }
-  td.date { white-space: nowrap; }
-
-  .export-btn { margin-top: 14px; }
+  td { padding: 7px 9px; border-bottom: 1px solid #eee; vertical-align: top; }
+  td.desc { max-width: 260px; }
+  td.nowrap { white-space: nowrap; }
+  .badge { display:inline-block; padding:2px 7px; border-radius:10px; font-size:0.7rem; font-weight:600; white-space:nowrap; }
+  .badge-plymouth { background:#d6eaf8; color:#1a5276; }
+  .badge-duxbury  { background:#d5f5e3; color:#117a65; }
   .no-results { padding: 30px; text-align: center; color: #999; }
+  mark { background: #fff176; border-radius: 2px; }
 </style>
 </head>
 <body>
 
 <header>
-  <h1>Plymouth MA — Kitchen Permit Finder</h1>
-  <p>Habitat for Humanity Cabinet Program — find kitchen permit applicants from monthly Building Department reports</p>
+  <h1>SE Mass Permit Finder</h1>
+  <p>Habitat for Humanity Cabinet Program — search kitchen &amp; remodel permits across municipalities</p>
 </header>
 
 <div class="container">
 
-  <!-- Auto-fetch -->
+  <!-- Town fetch cards -->
   <div class="panel">
-    <h2>Load Plymouth MA Permit Report</h2>
+    <h2>Load Permit Reports</h2>
+    <div class="town-grid">
 
-    <div class="fetch-section">
-      <button class="btn" id="fetch-btn" onclick="fetchLatest()">Fetch Latest Report (May 2026)</button>
-      <p>Automatically downloads and parses the latest monthly report from Plymouth MA.</p>
-    </div>
-    <div id="fetch-error" style="display:none;margin-top:10px;font-size:0.83rem;color:#c0392b;"></div>
+      <!-- Plymouth -->
+      <div class="town-card">
+        <h3>Plymouth MA</h3>
+        <button class="btn" id="btn-plymouth" onclick="fetchTown('plymouth')">Fetch May 2026 Report</button>
+        <div class="town-error" id="err-plymouth"></div>
+        <div class="progress-wrap" id="prog-plymouth">
+          <div class="progress-bar-bg"><div class="progress-bar" id="bar-plymouth"></div></div>
+          <div class="progress-msg" id="msg-plymouth"></div>
+        </div>
+        <div class="drop-zone" id="dz-plymouth">
+          <input type="file" id="fi-plymouth" accept=".pdf">
+          or upload PDF manually
+        </div>
+        <p>Source: <a href="https://www.plymouth-ma.gov/Archive.aspx?ADID=552" target="_blank" style="color:#1a5276;">May 2026</a> · <a href="https://www.plymouth-ma.gov/building-department/pages/monthly-building-permits" target="_blank" style="color:#1a5276;">All months</a></p>
+      </div>
 
-    <div class="divider">or upload manually</div>
+      <!-- Duxbury -->
+      <div class="town-card">
+        <h3>Duxbury MA</h3>
+        <button class="btn" id="btn-duxbury" onclick="fetchTown('duxbury')">Fetch April 2026 Report</button>
+        <div class="town-error" id="err-duxbury"></div>
+        <div class="progress-wrap" id="prog-duxbury">
+          <div class="progress-bar-bg"><div class="progress-bar" id="bar-duxbury"></div></div>
+          <div class="progress-msg" id="msg-duxbury"></div>
+        </div>
+        <div class="drop-zone" id="dz-duxbury">
+          <input type="file" id="fi-duxbury" accept=".pdf">
+          or upload PDF manually
+        </div>
+        <p>Source: <a href="https://www.town.duxbury.ma.us/building-department/pages/building-permits-issued" target="_blank" style="color:#1a5276;">Duxbury Building Permits</a></p>
+      </div>
 
-    <div class="drop-zone" id="drop-zone">
-      <input type="file" id="file-input" accept=".pdf">
-      <p>Drag &amp; drop a Plymouth MA permit PDF here, or <strong>click to browse</strong></p>
-      <p class="hint">Download from: <a href="https://www.plymouth-ma.gov/Archive.aspx?ADID=552" target="_blank" style="color:#1a5276;">May 2026</a> &nbsp;·&nbsp; <a href="https://www.plymouth-ma.gov/building-department/pages/monthly-building-permits" target="_blank" style="color:#1a5276;">All months</a></p>
-    </div>
-
-    <div id="progress" style="margin-top:14px;">
-      <div class="progress-bar-wrap"><div class="progress-bar" id="progress-bar"></div></div>
-      <div id="status-msg">Parsing PDF…</div>
     </div>
   </div>
 
-  <!-- Step 3: Filters -->
+  <!-- Filters -->
   <div class="panel" id="filter-panel" style="display:none;">
-    <h2>Step 3 — Filter results</h2>
+    <div class="filter-row">
+      <label>Towns:</label>
+      <div class="chips" id="town-chips"></div>
+    </div>
     <div class="filter-row">
       <label>Keywords:</label>
-      <div class="chips" id="chips"></div>
-      <input type="text" id="keyword-input" placeholder="Add keyword…">
-      <button class="btn" onclick="addKeyword()">Add</button>
+      <div class="chips" id="kw-chips"></div>
+      <input type="text" id="kw-input" placeholder="Add keyword…" style="width:140px;">
+      <button class="btn btn-sm" onclick="addKeyword()">Add</button>
     </div>
-    <div class="filter-row" style="margin-top:12px;">
-      <label>Description search:</label>
-      <input type="text" id="search-input" placeholder="Search descriptions…" oninput="renderTable()">
-      <button class="btn" onclick="renderTable()" style="margin-left:auto;">Apply</button>
+    <div class="filter-row">
+      <label>Search:</label>
+      <input type="text" id="search-input" placeholder="Search descriptions or addresses…" oninput="renderTable()" style="width:260px;">
     </div>
   </div>
 
   <!-- Results -->
   <div class="panel" id="results-panel">
-    <h2>Results</h2>
-    <div class="stats" id="stats"></div>
-    <button class="btn export-btn" onclick="exportCSV()">Export to CSV</button>
-    <div style="overflow-x:auto;margin-top:14px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+      <div class="stats" id="stats"></div>
+      <button class="btn btn-sm" onclick="exportCSV()">Export CSV</button>
+    </div>
+    <div style="overflow-x:auto;">
       <div id="table-container"></div>
     </div>
   </div>
 
 </div>
 
-<!-- PDF.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-// ── Auto-fetch ────────────────────────────────────────────────────────────────
-const LATEST_ADID = 552;
-const LATEST_LABEL = 'May 2026';
-// Railway server proxies the Plymouth PDF to avoid CORS
-const RAILWAY_HOST = 'https://permit-search.fly.dev';
+const FLY = 'https://permit-search.fly.dev';
 
-async function fetchLatest() {
-  const btn = document.getElementById('fetch-btn');
-  const errEl = document.getElementById('fetch-error');
+const TOWNS = {
+  plymouth: {
+    label: 'Plymouth',
+    fetchUrl: `${FLY}/api/plymouth-pdf?adid=552`,
+    btnLabel: 'Fetch May 2026 Report',
+  },
+  duxbury: {
+    label: 'Duxbury',
+    fetchUrl: `${FLY}/api/duxbury-pdf?month=april&year=2026`,
+    btnLabel: 'Fetch April 2026 Report',
+  }
+};
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let allRecords = []; // { municipality, record, location, issuedDate, description, contact, owner }
+let loadedTowns = new Set();
+let activeTowns = new Set();
+let keywords = ['kitchen','cabinet','demo','demolition','remodel','renovation','gut'];
+let activeKeywords = new Set();
+let sortCol = null, sortDir = 1;
+
+// ── Drop zones ────────────────────────────────────────────────────────────────
+['plymouth','duxbury'].forEach(town => {
+  const dz = document.getElementById(`dz-${town}`);
+  const fi = document.getElementById(`fi-${town}`);
+  dz.addEventListener('click', () => fi.click());
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+  dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('dragover'); loadFile(e.dataTransfer.files[0], town); });
+  fi.addEventListener('change', () => loadFile(fi.files[0], town));
+});
+
+async function loadFile(file, town) {
+  if (!file || file.type !== 'application/pdf') { alert('Please select a PDF file.'); return; }
+  await processPdf(await file.arrayBuffer(), town);
+}
+
+// ── Fetch ─────────────────────────────────────────────────────────────────────
+async function fetchTown(town) {
+  const cfg = TOWNS[town];
+  const btn = document.getElementById(`btn-${town}`);
+  const errEl = document.getElementById(`err-${town}`);
   errEl.style.display = 'none';
   btn.disabled = true;
   btn.textContent = 'Fetching…';
-  document.getElementById('progress').style.display = 'block';
-  setProgress(5, `Downloading ${LATEST_LABEL} report…`);
+  setProgress(town, 5, `Downloading ${cfg.label} report…`);
 
-  let arrayBuffer = null;
   try {
-    const res = await fetch(`${RAILWAY_HOST}/api/plymouth-pdf?adid=${LATEST_ADID}`);
+    const res = await fetch(cfg.fetchUrl);
     if (!res.ok) throw new Error(`Server returned HTTP ${res.status}`);
-    arrayBuffer = await res.arrayBuffer();
+    const buf = await res.arrayBuffer();
+    btn.disabled = false;
+    btn.textContent = cfg.btnLabel;
+    await processPdf(buf, town);
   } catch (e) {
     btn.disabled = false;
-    btn.textContent = `Fetch Latest Report (${LATEST_LABEL})`;
-    document.getElementById('progress').style.display = 'none';
-    errEl.textContent = `Could not fetch the PDF: ${e.message}. Please download it manually using the link below and upload it.`;
+    btn.textContent = cfg.btnLabel;
+    hideProgress(town);
+    errEl.textContent = `Could not fetch: ${e.message}. Try uploading manually.`;
     errEl.style.display = 'block';
-    return;
   }
-
-  btn.disabled = false;
-  btn.textContent = `Fetch Latest Report (${LATEST_LABEL})`;
-  await parsePdfBuffer(arrayBuffer);
 }
 
-// ── Keyword chips ─────────────────────────────────────────────────────────────
-let keywords = ['kitchen','cabinet','demo','demolition','remodel','renovation','gut'];
-let activeKeywords = new Set(); // empty = show all records
-
-function renderChips() {
-  const el = document.getElementById('chips');
-  el.innerHTML = keywords.map(k =>
-    `<span class="chip ${activeKeywords.has(k)?'':'off'}" onclick="toggleKeyword('${k}')">${k}</span>`
-  ).join('');
+function setProgress(town, pct, msg) {
+  document.getElementById(`prog-${town}`).style.display = 'block';
+  document.getElementById(`bar-${town}`).style.width = pct + '%';
+  document.getElementById(`msg-${town}`).textContent = msg;
+}
+function hideProgress(town) {
+  document.getElementById(`prog-${town}`).style.display = 'none';
 }
 
-function toggleKeyword(k) {
-  if (activeKeywords.has(k)) activeKeywords.delete(k);
-  else activeKeywords.add(k);
-  renderChips();
-  renderTable();
-}
-
-function addKeyword() {
-  const inp = document.getElementById('keyword-input');
-  const val = inp.value.trim().toLowerCase();
-  if (val && !keywords.includes(val)) { keywords.push(val); activeKeywords.add(val); }
-  inp.value = '';
-  renderChips();
-  renderTable();
-}
-document.getElementById('keyword-input').addEventListener('keydown', e => { if (e.key==='Enter') addKeyword(); });
-renderChips();
-
-// ── Drop zone ─────────────────────────────────────────────────────────────────
-const dropZone = document.getElementById('drop-zone');
-const fileInput = document.getElementById('file-input');
-dropZone.addEventListener('click', () => fileInput.click());
-dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFile(e.dataTransfer.files[0]); });
-fileInput.addEventListener('change', () => handleFile(fileInput.files[0]));
-
-// ── PDF parsing ───────────────────────────────────────────────────────────────
-let allRecords = [];
-
-async function handleFile(file) {
-  if (!file || file.type !== 'application/pdf') { alert('Please select a PDF file.'); return; }
-  document.getElementById('progress').style.display = 'block';
-  document.getElementById('results-panel').style.display = 'none';
-  setProgress(0, 'Loading PDF…');
-  await parsePdfBuffer(await file.arrayBuffer());
-}
-
-async function parsePdfBuffer(arrayBuffer) {
-  document.getElementById('results-panel').style.display = 'none';
+// ── PDF processing ────────────────────────────────────────────────────────────
+async function processPdf(arrayBuffer, town) {
+  setProgress(town, 10, 'Extracting text…');
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
   const totalPages = pdf.numPages;
-  setProgress(5, `Extracting text from ${totalPages} pages…`);
-
-  // Collect all text items with position across all pages
   const pageItems = [];
+
   for (let p = 1; p <= totalPages; p++) {
     const page = await pdf.getPage(p);
     const tc = await page.getTextContent();
     const vp = page.getViewport({ scale: 1 });
-    // Normalise y so top of page = 0
     const items = tc.items
       .filter(i => i.str && i.str.trim())
-      .map(i => ({
-        text: i.str.trim(),
-        x: Math.round(i.transform[4]),
-        y: Math.round(vp.height - i.transform[5]), // flip
-        page: p
-      }));
+      .map(i => ({ text: i.str.trim(), x: i.transform[4], y: vp.height - i.transform[5] }));
     pageItems.push(items);
-    if (p % 10 === 0) setProgress(5 + Math.round((p/totalPages)*70), `Page ${p}/${totalPages}…`);
+    if (p % 10 === 0) setProgress(town, 10 + Math.round((p / totalPages) * 65), `Page ${p}/${totalPages}…`);
   }
 
-setProgress(75, 'Parsing records…');
-  allRecords = parseRecords(pageItems);
-  setProgress(100, `Done — ${allRecords.length} records parsed.`);
+  setProgress(town, 80, 'Parsing records…');
+  const parsed = town === 'duxbury' ? parseDuxbury(pageItems) : parsePlymouth(pageItems);
+  const tagged = parsed.map(r => ({ ...r, municipality: town }));
 
+  // Replace records for this town
+  allRecords = allRecords.filter(r => r.municipality !== town).concat(tagged);
+  loadedTowns.add(town);
+  activeTowns.add(town);
+
+  setProgress(town, 100, `Done — ${tagged.length} records.`);
   document.getElementById('filter-panel').style.display = 'block';
   document.getElementById('results-panel').style.display = 'block';
+  renderTownChips();
+  renderKwChips();
   renderTable();
 }
 
-function setProgress(pct, msg) {
-  document.getElementById('progress-bar').style.width = pct + '%';
-  document.getElementById('status-msg').textContent = msg;
-}
-
-// ── Table parser ──────────────────────────────────────────────────────────────
-// Strategy: anchor on permit number items (e.g. A-26-412) which are
-// unambiguous. Collect all items on each page, sort by Y then X, group into
-// row-bands, then assign columns by X position calibrated from the permit
-// number column (whose X position is consistent across pages).
-
+// ── Shared parser utilities ───────────────────────────────────────────────────
 const RECORD_NUM_RE = /^[A-Z]{1,4}-\d{2}-\d+$/;
 const RECORD_NUM_PREFIX_RE = /^[A-Z]{1,4}-\d{2}-$/;
 
 function median(arr) {
-  const s = [...arr].sort((a,b) => a-b);
-  return s[Math.floor(s.length/2)];
+  const s = [...arr].sort((a, b) => a - b);
+  return s[Math.floor(s.length / 2)];
 }
 
-function parseRecords(pageItems) {
-  const records = [];
-
-  // Pre-process: join permit numbers split across lines ("A-26-" + "364" → "A-26-364")
+function joinSplitRecordNums(pageItems) {
   for (const items of pageItems) {
     for (const item of items) {
       if (RECORD_NUM_PREFIX_RE.test(item.text)) {
@@ -285,150 +283,193 @@ function parseRecords(pageItems) {
           j !== item && Math.abs(j.x - item.x) <= 3 &&
           j.y > item.y && j.y - item.y < 25 && /^\d+$/.test(j.text)
         );
-        if (cont) { item.text = item.text + cont.text; cont.text = ''; }
+        if (cont) { item.text += cont.text; cont.text = ''; }
       }
     }
   }
+}
 
-  // First pass: find the typical X position of permit numbers across all pages
-  const allRecordNums = pageItems.flat().filter(i => RECORD_NUM_RE.test(i.text));
-  if (!allRecordNums.length) return records;
-  const recordNumX = median(allRecordNums.map(i => i.x));
+function bandItems(items) {
+  const sorted = [...items].sort((a, b) => a.y - b.y || a.x - b.x);
+  const bands = [];
+  for (const item of sorted) {
+    const last = bands[bands.length - 1];
+    if (last && Math.abs(item.y - last.y) <= 5) {
+      last.items.push(item);
+      last.y = (last.y + item.y) / 2;
+    } else {
+      bands.push({ y: item.y, items: [item] });
+    }
+  }
+  return bands;
+}
 
+function appendField(rec, key, text) {
+  if (text) rec[key] = (rec[key] ? rec[key] + ' ' : '') + text;
+}
+
+// ── Plymouth parser ───────────────────────────────────────────────────────────
+// Columns (x positions from real PDF): RecordType=58, Record=174, Location=207,
+// Mbl=263, Date=297, Description=342, DocTitle=428, EstCost=473,
+// Applicant=528, Phone=578, Owner=627, TotalPaid=708
+function parsePlymouth(pageItems) {
+  joinSplitRecordNums(pageItems);
+  const flat = pageItems.flat();
+  const recNums = flat.filter(i => RECORD_NUM_RE.test(i.text));
+  if (!recNums.length) return [];
+  const rx = median(recNums.map(i => i.x));
+
+  function col(x) {
+    const d = x - rx;
+    if (d < -58)  return 'recordType';
+    if (d < 16)   return 'record';
+    if (d < 61)   return 'location';
+    if (d < 106)  return 'mbl';
+    if (d < 145)  return 'issuedDate';
+    if (d < 211)  return 'description';
+    if (d < 276)  return 'docTitle';
+    if (d < 326)  return 'estCost';
+    if (d < 379)  return 'contact';    // Applicant Name
+    if (d < 428)  return 'phone';
+    if (d < 493)  return 'owner';
+    return 'totalPaid';
+  }
+
+  const records = [];
   for (const items of pageItems) {
     if (!items.length) continue;
-
-    const recordNumsOnPage = items.filter(i => RECORD_NUM_RE.test(i.text));
-    if (!recordNumsOnPage.length) continue;
-
-    // Sort all items by y then x
-    const sorted = [...items].sort((a,b) => a.y - b.y || a.x - b.x);
-
-    // Group into row-bands (items within 5px Y of each other share a band)
-    const bands = [];
-    for (const item of sorted) {
-      const last = bands[bands.length-1];
-      if (last && Math.abs(item.y - last.y) <= 5) {
-        last.items.push(item);
-        last.y = (last.y + item.y) / 2; // rolling average
-      } else {
-        bands.push({ y: item.y, items: [item] });
-      }
-    }
-
-    // Find Y positions of all permit numbers on this page
-    const recordBandYs = new Set(
-      recordNumsOnPage.map(rn => {
-        const band = bands.find(b => b.items.some(i => i === rn));
-        return band ? Math.round(band.y) : null;
-      }).filter(Boolean)
-    );
-
-    // Determine column X boundaries from permit number X position
-    // Columns (approximate x ranges relative to recordNumX):
-    // Col 0 (Record Type): x < recordNumX - 5
-    // Col 1 (Record #):    x ≈ recordNumX
-    // Col 2 (Location):    recordNumX + 40 to recordNumX + 130
-    // Col 3 (Mbl):         recordNumX + 135 to recordNumX + 200
-    // Col 4 (Date):        recordNumX + 205 to recordNumX + 290
-    // Col 5 (Description): recordNumX + 295 to recordNumX + 430
-    // Col 6 (Doc Title):   recordNumX + 435 to recordNumX + 510
-    // Col 7 (Est Cost):    recordNumX + 515 to recordNumX + 590
-    // Col 8 (Applicant):   recordNumX + 595 to recordNumX + 680
-    // Col 9 (Phone):       recordNumX + 685 to recordNumX + 760
-    // Col 10 (Owner):      recordNumX + 765 to recordNumX + 880
-    // Col 11 (Total Paid): recordNumX + 885+
-
-    function getCol(x) {
-      const dx = x - recordNumX;
-      if (dx < -58)  return 0;  // Record Type   (x≈58)
-      if (dx < 16)   return 1;  // Record #      (x≈174)
-      if (dx < 61)   return 2;  // Location      (x≈207)
-      if (dx < 106)  return 3;  // Mbl           (x≈263)
-      if (dx < 145)  return 4;  // Date          (x≈297)
-      if (dx < 211)  return 5;  // Description   (x≈342)
-      if (dx < 276)  return 6;  // Doc Title     (x≈428)
-      if (dx < 326)  return 7;  // Est Cost      (x≈473)
-      if (dx < 379)  return 8;  // Applicant     (x≈528)
-      if (dx < 428)  return 9;  // Phone         (x≈578)
-      if (dx < 493)  return 10; // Owner         (x≈627)
-      return 11;                // Total Paid    (x≈708)
-    }
-
-    // Assign each band to a record: new record starts at bands whose Y matches a record number Y
-    let currentRecord = null;
-    let currentRecordStartY = -1;
-
+    const rns = items.filter(i => RECORD_NUM_RE.test(i.text));
+    if (!rns.length) continue;
+    const bands = bandItems(items);
+    let cur = null;
     for (const band of bands) {
-      const bandY = Math.round(band.y);
-      const isRecordStart = recordNumsOnPage.some(rn => Math.abs(rn.y - band.y) <= 5 && band.items.includes(rn));
-
-      if (isRecordStart) {
-        if (currentRecord) records.push(currentRecord);
-        currentRecord = initRecord();
-        currentRecordStartY = bandY;
+      if (rns.some(rn => Math.abs(rn.y - band.y) <= 5 && band.items.includes(rn))) {
+        if (cur) records.push(cur);
+        cur = { recordType:'', record:'', location:'', issuedDate:'', description:'', contact:'', phone:'', owner:'' };
       }
-
-      if (!currentRecord) continue;
-
-      // Assign items in this band to columns
-      for (const item of band.items) {
-        const col = getCol(item.x);
-        const t = item.text;
-        if      (col === 0)  currentRecord.recordType  += (currentRecord.recordType  ? ' ' : '') + t;
-        else if (col === 1)  currentRecord.record      += (currentRecord.record      ? ' ' : '') + t;
-        else if (col === 2)  currentRecord.location    += (currentRecord.location    ? ' ' : '') + t;
-        else if (col === 3)  currentRecord.mbl         += (currentRecord.mbl         ? ' ' : '') + t;
-        else if (col === 4)  currentRecord.issuedDate  += (currentRecord.issuedDate  ? ' ' : '') + t;
-        else if (col === 5)  currentRecord.description += (currentRecord.description ? ' ' : '') + t;
-        else if (col === 6)  currentRecord.docTitle    += (currentRecord.docTitle    ? ' ' : '') + t;
-        else if (col === 7)  currentRecord.estCost     += (currentRecord.estCost     ? ' ' : '') + t;
-        else if (col === 8)  currentRecord.applicant   += (currentRecord.applicant   ? ' ' : '') + t;
-        else if (col === 9)  currentRecord.phone       += (currentRecord.phone       ? ' ' : '') + t;
-        else if (col === 10) currentRecord.owner       += (currentRecord.owner       ? ' ' : '') + t;
-        else if (col === 11) currentRecord.totalPaid   += (currentRecord.totalPaid   ? ' ' : '') + t;
-      }
+      if (!cur) continue;
+      for (const item of band.items) appendField(cur, col(item.x), item.text);
     }
-    if (currentRecord) records.push(currentRecord);
+    if (cur) records.push(cur);
   }
 
-  // Deduplicate by record number
   const seen = new Set();
-  return records.filter(r => {
-    if (!r.record) return false;
-    if (seen.has(r.record)) return false;
-    seen.add(r.record);
-    return true;
-  });
+  return records.filter(r => r.record && !seen.has(r.record) && seen.add(r.record));
 }
 
-function initRecord() {
-  return { recordType:'', record:'', location:'', mbl:'', issuedDate:'', description:'', docTitle:'', estCost:'', applicant:'', phone:'', owner:'', totalPaid:'' };
+// ── Duxbury parser ────────────────────────────────────────────────────────────
+// Columns (x from real PDF): Record=53, RecordType=99, Address=167, Mbl=230,
+// TotalCost=300, TypeOfWork=355, Description=411, Contractor=494,
+// Owner=555, Date=632, PID=690
+function parseDuxbury(pageItems) {
+  joinSplitRecordNums(pageItems);
+  const flat = pageItems.flat();
+  const recNums = flat.filter(i => RECORD_NUM_RE.test(i.text));
+  if (!recNums.length) return [];
+  const rx = median(recNums.map(i => i.x));
+
+  function col(x) {
+    const d = x - rx;
+    if (d < 23)   return 'record';
+    if (d < 80)   return 'recordType';
+    if (d < 146)  return 'location';
+    if (d < 212)  return 'mbl';
+    if (d < 275)  return 'estCost';
+    if (d < 330)  return 'typeOfWork';
+    if (d < 400)  return 'description';
+    if (d < 471)  return 'contact';    // Contractor
+    if (d < 541)  return 'owner';
+    if (d < 609)  return 'issuedDate';
+    return 'pid';
+  }
+
+  const records = [];
+  for (const items of pageItems) {
+    if (!items.length) continue;
+    const rns = items.filter(i => RECORD_NUM_RE.test(i.text));
+    if (!rns.length) continue;
+    const bands = bandItems(items);
+    let cur = null;
+    for (const band of bands) {
+      if (rns.some(rn => Math.abs(rn.y - band.y) <= 5 && band.items.includes(rn))) {
+        if (cur) records.push(cur);
+        cur = { recordType:'', record:'', location:'', issuedDate:'', description:'', contact:'', owner:'' };
+      }
+      if (!cur) continue;
+      for (const item of band.items) appendField(cur, col(item.x), item.text);
+    }
+    if (cur) records.push(cur);
+  }
+
+  const seen = new Set();
+  return records.filter(r => r.record && !seen.has(r.record) && seen.add(r.record));
 }
 
-// ── Table render ──────────────────────────────────────────────────────────────
-let sortCol = null, sortDir = 1;
+// ── Chips ─────────────────────────────────────────────────────────────────────
+function renderTownChips() {
+  const el = document.getElementById('town-chips');
+  el.innerHTML = [...loadedTowns].map(t =>
+    `<span class="chip town ${activeTowns.has(t)?'':'off'}" onclick="toggleTown('${t}')">${TOWNS[t].label}</span>`
+  ).join('');
+}
 
+function toggleTown(t) {
+  if (activeTowns.has(t)) activeTowns.delete(t); else activeTowns.add(t);
+  renderTownChips();
+  renderTable();
+}
+
+function renderKwChips() {
+  const el = document.getElementById('kw-chips');
+  el.innerHTML = keywords.map(k =>
+    `<span class="chip kw ${activeKeywords.has(k)?'':'off'}" onclick="toggleKw('${k}')">${k}</span>`
+  ).join('');
+}
+
+function toggleKw(k) {
+  if (activeKeywords.has(k)) activeKeywords.delete(k); else activeKeywords.add(k);
+  renderKwChips();
+  renderTable();
+}
+
+function addKeyword() {
+  const inp = document.getElementById('kw-input');
+  const val = inp.value.trim().toLowerCase();
+  if (val && !keywords.includes(val)) { keywords.push(val); activeKeywords.add(val); }
+  inp.value = '';
+  renderKwChips();
+  renderTable();
+}
+document.getElementById('kw-input').addEventListener('keydown', e => { if (e.key === 'Enter') addKeyword(); });
+
+// ── Table ─────────────────────────────────────────────────────────────────────
 function matchesFilters(r) {
-  const desc = r.description.toLowerCase();
+  if (!activeTowns.has(r.municipality)) return false;
+  const desc = (r.description + ' ' + (r.typeOfWork || '')).toLowerCase();
   const search = document.getElementById('search-input').value.trim().toLowerCase();
   const kwMatch = activeKeywords.size === 0 || [...activeKeywords].some(k => desc.includes(k));
   const searchMatch = !search || desc.includes(search) || r.location.toLowerCase().includes(search);
   return kwMatch && searchMatch;
 }
 
-function renderTable() {
-  let filtered = allRecords.filter(matchesFilters);
+const COL_KEYS = ['municipality','record','location','issuedDate','description','contact','owner'];
+const COL_LABELS = ['Town','Permit #','Address','Date','Description','Contractor / Applicant','Owner'];
 
+function renderTable() {
+  const filtered = allRecords.filter(matchesFilters);
   if (sortCol !== null) {
-    const key = ['record','location','issuedDate','description','applicant','phone','owner'][sortCol];
-    filtered.sort((a,b) => sortDir * a[key].localeCompare(b[key]));
+    const k = COL_KEYS[sortCol];
+    filtered.sort((a, b) => sortDir * (a[k]||'').localeCompare(b[k]||''));
   }
 
-  // Stats
+  const byTown = {};
+  for (const t of loadedTowns) byTown[t] = allRecords.filter(r => r.municipality === t).length;
+  const townStats = [...loadedTowns].map(t => `<div class="stat"><div class="num">${byTown[t]}</div><div class="lbl">${TOWNS[t].label}</div></div>`).join('');
+
   document.getElementById('stats').innerHTML = `
-    <div class="stat"><div class="num">${allRecords.length}</div><div class="lbl">Total records</div></div>
-    <div class="stat"><div class="num">${filtered.length}</div><div class="lbl">Keyword matches</div></div>
+    ${townStats}
+    <div class="stat"><div class="num">${allRecords.length}</div><div class="lbl">Total</div></div>
+    <div class="stat"><div class="num">${filtered.length}</div><div class="lbl">Filtered</div></div>
   `;
 
   if (!filtered.length) {
@@ -436,18 +477,17 @@ function renderTable() {
     return;
   }
 
-  const cols = ['Permit #','Address','Date','Description of Work','Applicant','Phone','Owner Name'];
-  const keys = ['record','location','issuedDate','description','applicant','phone','owner'];
-
-  const th = cols.map((c,i) => `<th onclick="sortBy(${i})">${c}${sortCol===i?(sortDir>0?' ▲':' ▼'):''}</th>`).join('');
+  const th = COL_LABELS.map((c, i) =>
+    `<th onclick="sortBy(${i})">${c}${sortCol===i?(sortDir>0?' ▲':' ▼'):''}</th>`
+  ).join('');
 
   const rows = filtered.map(r => `<tr>
-    <td>${esc(r.record)}</td>
-    <td class="addr">${esc(r.location)}</td>
-    <td class="date">${esc(r.issuedDate)}</td>
+    <td class="nowrap"><span class="badge badge-${r.municipality}">${TOWNS[r.municipality].label}</span></td>
+    <td class="nowrap">${esc(r.record)}</td>
+    <td class="nowrap">${esc(r.location)}</td>
+    <td class="nowrap">${esc(r.issuedDate)}</td>
     <td class="desc">${highlight(r.description)}</td>
-    <td>${esc(r.applicant)}</td>
-    <td class="phone">${esc(r.phone)}</td>
+    <td>${esc(r.contact)}</td>
     <td>${esc(r.owner)}</td>
   </tr>`).join('');
 
@@ -456,8 +496,7 @@ function renderTable() {
 }
 
 function sortBy(i) {
-  if (sortCol === i) sortDir = -sortDir;
-  else { sortCol = i; sortDir = 1; }
+  if (sortCol === i) sortDir = -sortDir; else { sortCol = i; sortDir = 1; }
   renderTable();
 }
 
@@ -466,8 +505,7 @@ function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
 function highlight(text) {
   let h = esc(text);
   for (const k of activeKeywords) {
-    const re = new RegExp(`(${k})`, 'gi');
-    h = h.replace(re, '<mark>$1</mark>');
+    h = h.replace(new RegExp(`(${k})`, 'gi'), '<mark>$1</mark>');
   }
   return h;
 }
@@ -475,13 +513,12 @@ function highlight(text) {
 // ── CSV export ────────────────────────────────────────────────────────────────
 function exportCSV() {
   const filtered = allRecords.filter(matchesFilters);
-  const headers = ['Permit #','Address','Date','Description','Applicant','Phone','Owner','Permit Type','Est Cost'];
-  const rows = filtered.map(r => [r.record,r.location,r.issuedDate,r.description,r.applicant,r.phone,r.owner,r.recordType,r.estCost]);
+  const headers = ['Town','Permit #','Address','Date','Description','Contractor/Applicant','Owner'];
+  const rows = filtered.map(r => [TOWNS[r.municipality].label, r.record, r.location, r.issuedDate, r.description, r.contact, r.owner]);
   const csv = [headers, ...rows].map(row => row.map(v => `"${(v||'').replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'plymouth-kitchen-permits.csv';
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  a.download = 'permit-search.csv';
   a.click();
 }
 </script>
