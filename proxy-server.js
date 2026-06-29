@@ -6,8 +6,9 @@ const https = require('https');
 const PORT = process.env.PORT || 3001;
 
 // In-memory cache: adid -> { buffer, cachedAt }
+// Keeps only the 2 most recent ADIDs
 const cache = {};
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const MAX_CACHED_MONTHS = 2;
 
 function log(msg) {
   console.log(`[${new Date().toISOString()}] ${msg}`);
@@ -55,10 +56,9 @@ const server = http.createServer(async (req, res) => {
     const adid = parseInt(url.searchParams.get('adid') || '552');
     if (isNaN(adid) || adid < 1) return send(res, 400, 'application/json', JSON.stringify({ error: 'Invalid adid' }));
 
-    const cached = cache[adid];
-    if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
-      log(`Serving adid=${adid} from cache (${cached.buffer.length} bytes)`);
-      return send(res, 200, 'application/pdf', cached.buffer);
+    if (cache[adid]) {
+      log(`Serving adid=${adid} from cache (${cache[adid].buffer.length} bytes)`);
+      return send(res, 200, 'application/pdf', cache[adid].buffer);
     }
 
     const pdfUrl = `https://www.plymouth-ma.gov/Archive.aspx?ADID=${adid}`;
@@ -66,8 +66,17 @@ const server = http.createServer(async (req, res) => {
     try {
       const { status, buffer } = await fetchBinary(pdfUrl);
       if (status !== 200) return send(res, 502, 'application/json', JSON.stringify({ error: `Plymouth MA returned HTTP ${status}` }));
+
       cache[adid] = { buffer, cachedAt: Date.now() };
       log(`Cached adid=${adid} (${buffer.length} bytes)`);
+
+      // Evict oldest entries beyond the 2-month limit
+      const keys = Object.keys(cache).map(Number).sort((a, b) => b - a);
+      for (const old of keys.slice(MAX_CACHED_MONTHS)) {
+        log(`Evicting adid=${old} from cache`);
+        delete cache[old];
+      }
+
       send(res, 200, 'application/pdf', buffer);
     } catch (e) {
       log(`Error: ${e.message}`);
