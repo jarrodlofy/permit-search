@@ -69,6 +69,7 @@
   .badge { display:inline-block; padding:2px 7px; border-radius:10px; font-size:0.7rem; font-weight:600; white-space:nowrap; }
   .badge-plymouth { background:#d6eaf8; color:#1a5276; }
   .badge-duxbury  { background:#d5f5e3; color:#117a65; }
+  .badge-hingham  { background:#fdebd0; color:#784212; }
   .no-results { padding: 30px; text-align: center; color: #999; }
   mark { background: #fff176; border-radius: 2px; }
 </style>
@@ -117,6 +118,22 @@
           or upload PDF manually
         </div>
         <p>Source: <a href="https://www.town.duxbury.ma.us/building-department/pages/building-permits-issued" target="_blank" style="color:#1a5276;">Duxbury Building Permits</a></p>
+      </div>
+
+      <!-- Hingham -->
+      <div class="town-card">
+        <h3>Hingham MA</h3>
+        <button class="btn" id="btn-hingham" onclick="fetchTown('hingham')">Fetch Latest Report</button>
+        <div class="town-error" id="err-hingham"></div>
+        <div class="progress-wrap" id="prog-hingham">
+          <div class="progress-bar-bg"><div class="progress-bar" id="bar-hingham"></div></div>
+          <div class="progress-msg" id="msg-hingham"></div>
+        </div>
+        <div class="drop-zone" id="dz-hingham">
+          <input type="file" id="fi-hingham" accept=".pdf">
+          or upload PDF manually
+        </div>
+        <p>Source: <a href="https://www.hingham-ma.gov/207/Building" target="_blank" style="color:#1a5276;">Hingham Building Dept</a> (rolling ~2 week window)</p>
       </div>
 
     </div>
@@ -169,6 +186,11 @@ const TOWNS = {
     label: 'Duxbury',
     fetchUrl: `${FLY}/api/duxbury-pdf?month=april&year=2026`,
     btnLabel: 'Fetch April 2026 Report',
+  },
+  hingham: {
+    label: 'Hingham',
+    fetchUrl: `${FLY}/api/hingham-pdf`,
+    btnLabel: 'Fetch Latest Report',
   }
 };
 
@@ -181,7 +203,7 @@ let activeKeywords = new Set();
 let sortCol = null, sortDir = 1;
 
 // ── Drop zones ────────────────────────────────────────────────────────────────
-['plymouth','duxbury'].forEach(town => {
+['plymouth','duxbury','hingham'].forEach(town => {
   const dz = document.getElementById(`dz-${town}`);
   const fi = document.getElementById(`fi-${town}`);
   dz.addEventListener('click', () => fi.click());
@@ -250,7 +272,7 @@ async function processPdf(arrayBuffer, town) {
   }
 
   setProgress(town, 80, 'Parsing records…');
-  const parsed = town === 'duxbury' ? parseDuxbury(pageItems) : parsePlymouth(pageItems);
+  const parsed = town === 'duxbury' ? parseDuxbury(pageItems) : town === 'hingham' ? parseHingham(pageItems) : parsePlymouth(pageItems);
   const tagged = parsed.map(r => ({ ...r, municipality: town }));
 
   // Replace records for this town
@@ -381,6 +403,53 @@ function parseDuxbury(pageItems) {
     if (d < 541)  return 'owner';
     if (d < 609)  return 'issuedDate';
     return 'pid';
+  }
+
+  const records = [];
+  for (const items of pageItems) {
+    if (!items.length) continue;
+    const rns = items.filter(i => RECORD_NUM_RE.test(i.text));
+    if (!rns.length) continue;
+    const bands = bandItems(items);
+    let cur = null;
+    for (const band of bands) {
+      if (rns.some(rn => Math.abs(rn.y - band.y) <= 5 && band.items.includes(rn))) {
+        if (cur) records.push(cur);
+        cur = { recordType:'', record:'', location:'', issuedDate:'', description:'', contact:'', owner:'' };
+      }
+      if (!cur) continue;
+      for (const item of band.items) appendField(cur, col(item.x), item.text);
+    }
+    if (cur) records.push(cur);
+  }
+
+  const seen = new Set();
+  return records.filter(r => r.record && !seen.has(r.record) && seen.add(r.record));
+}
+
+// ── Hingham parser ───────────────────────────────────────────────────────────
+// Columns (x from real PDF): IssueDate=15, PermitNum=62, Owner=100,
+// Address=258, MapLot=349, Description=410, EstCost=501,
+// Fees=565, Code=617, Contractor=674
+// Records are single-line — no split permit numbers needed
+function parseHingham(pageItems) {
+  const flat = pageItems.flat();
+  const recNums = flat.filter(i => RECORD_NUM_RE.test(i.text));
+  if (!recNums.length) return [];
+  const rx = median(recNums.map(i => i.x));
+
+  function col(x) {
+    const d = x - rx;
+    if (d < -24)  return 'issuedDate';
+    if (d < 19)   return 'record';
+    if (d < 117)  return 'owner';
+    if (d < 242)  return 'location';
+    if (d < 318)  return 'mbl';
+    if (d < 394)  return 'description';
+    if (d < 471)  return 'estCost';
+    if (d < 529)  return 'permitFees';
+    if (d < 584)  return 'buildingCode';
+    return 'contact';
   }
 
   const records = [];

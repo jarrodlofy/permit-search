@@ -111,8 +111,28 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (url.pathname === '/api/hingham-pdf') {
+    const pdfUrl = 'https://www.hingham-ma.gov/DocumentCenter/View/1833/Building-Permits-Recently-Issued---Updated-PDF';
+    if (cache['hingham']) {
+      log(`Serving Hingham PDF from cache (${cache['hingham'].buffer.length} bytes)`);
+      return send(res, 200, 'application/pdf', cache['hingham'].buffer);
+    }
+    log(`Fetching Hingham PDF`);
+    try {
+      const { status, buffer } = await fetchBinary(pdfUrl);
+      if (status !== 200) return send(res, 502, 'application/json', JSON.stringify({ error: `Hingham returned HTTP ${status}` }));
+      cache['hingham'] = { buffer, cachedAt: Date.now() };
+      log(`Cached Hingham PDF (${buffer.length} bytes)`);
+      send(res, 200, 'application/pdf', buffer);
+    } catch (e) {
+      log(`Error: ${e.message}`);
+      send(res, 502, 'application/json', JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
   if (url.pathname === '/') {
-    return send(res, 200, 'application/json', JSON.stringify({ endpoints: ['GET /api/plymouth-pdf?adid=552', 'GET /api/duxbury-pdf?month=april&year=2026'] }));
+    return send(res, 200, 'application/json', JSON.stringify({ endpoints: ['GET /api/plymouth-pdf?adid=552', 'GET /api/duxbury-pdf?month=april&year=2026', 'GET /api/hingham-pdf'] }));
   }
 
   send(res, 404, 'application/json', JSON.stringify({ error: 'Not found' }));
